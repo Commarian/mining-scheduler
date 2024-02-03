@@ -9,7 +9,7 @@ class FirebaseManager:
         cred = credentials.Certificate(
             "C:/job-card-d03e0-firebase-adminsdk-u9rr7-f4df14bfa9.json")
         firebase_admin.initialize_app(cred, {
-            'databaseURL': 'https://console.firebase.google.com/u/0/project/job-card-d03e0/firestore/data/~2F',
+            'databaseURL': 'https://job-card.firebaseio.com',
         }, name='excel_app')
         app = firebase_admin.get_app(name='excel_app')
         self.db = firestore.client(app=app)
