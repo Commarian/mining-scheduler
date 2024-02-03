@@ -1,52 +1,66 @@
 # main_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QListWidget, QListWidgetItem
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QLineEdit
+from PyQt5.QtCore import Qt
 
-from new_jobcard_window import NewJobcardWindow
-from new_issue_list_window import NewIssueListWindow
+from new_issue_window import NewIssueWindow
 from firebase_manager import FirebaseManager
+
+class HyperlinkLabel(QLabel):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        self.linkActivated.emit(self.text())
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Jobcard Application")
-        self.setGeometry(100, 100, 400, 400)
+        self.setGeometry(100, 100, 800, 600)  # Increased width for a better layout
 
         # Initialize FirebaseManager with the path to the service account key
         self.firebase_manager = FirebaseManager()
 
-
         self.new_jobcard_window = None
         self.new_issue_list_window = None
 
-        new_jobcard_button = QPushButton("New Jobcard", self)
-        new_jobcard_button.clicked.connect(self.show_new_jobcard_window)
+        # Left panel with action buttons and search
+        left_panel_layout = QVBoxLayout()
 
-        new_issue_list_button = QPushButton("New Issue List", self)
-        new_issue_list_button.clicked.connect(self.show_new_issue_list_window)
+        # Search bar
+        search_line_edit = QLineEdit(self)
+        search_line_edit.setPlaceholderText("Search...")
+        left_panel_layout.addWidget(search_line_edit)
 
-        exit_button = QPushButton("Exit", self)
-        exit_button.clicked.connect(self.close)
+        # Action buttons styled like hyperlinks
+        add_issue_label = HyperlinkLabel("Add Issue", self)
+        add_issue_label.linkActivated.connect(self.show_new_issue_window)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(new_jobcard_button)
-        layout.addWidget(new_issue_list_button)
-        layout.addWidget(exit_button)
+        export_report_label = HyperlinkLabel("Export/Report", self)
+        export_report_label.linkActivated.connect(self.export_report_function)
 
-        #Dashboard
+        left_panel_layout.addWidget(add_issue_label)
+        left_panel_layout.addWidget(export_report_label)
+
+        # Dashboard in the middle
+        dashboard_layout = QVBoxLayout()
+
+        # You can add widgets/components to the dashboard_layout as needed
+        # For now, let's add a QListWidget to simulate the dashboard
         jobcard_list_widget = QListWidget(self)
         self.populate_jobcards(jobcard_list_widget)
-        layout.addWidget(jobcard_list_widget)
+        dashboard_layout.addWidget(jobcard_list_widget)
 
-    def show_new_jobcard_window(self):
-        #if not self.new_jobcard_window:
-        self.new_jobcard_window = NewJobcardWindow(self.firebase_manager)
-        self.new_jobcard_window.show()
+        # Main layout combining left panel and dashboard
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(left_panel_layout)
+        main_layout.addLayout(dashboard_layout)
 
-    def show_new_issue_list_window(self):
-        if not self.new_issue_list_window:
-            self.new_issue_list_window = NewIssueListWindow()
-        self.new_issue_list_window.show()
+    def show_new_issue_window(self):
+        self.new_issue_window = NewIssueWindow(self.firebase_manager)
+        self.new_issue_window.show()
 
     def populate_jobcards(self, jobcard_list_widget):
         try:
@@ -57,7 +71,6 @@ class MainWindow(QWidget):
                 section = jobcard.get("Section", "")
                 supervisor = jobcard.get("Supervisor", "")
                 shift = jobcard.get("Shift", "")
-                # You can include more fields as needed
 
                 # Create a formatted string for display
                 display_text = f"{title} - {section}, {supervisor}, {shift}"
@@ -66,4 +79,8 @@ class MainWindow(QWidget):
                 item = QListWidgetItem(display_text)
                 jobcard_list_widget.addItem(item)
         except Exception as e:
-            print(f"Error fetching jobcards: {e}")
+            print(f"Error fetching job cards: {e}")
+
+    def export_report_function(self):
+        # Implement export/report functionality here
+        pass

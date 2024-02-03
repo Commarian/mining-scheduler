@@ -7,9 +7,9 @@ class FirebaseManager:
     def __init__(self):
         # Initialize Firebase with offline persistence
         cred = credentials.Certificate(
-            "C:/Users/Commarian/Documents/job-card-d03e0-firebase-adminsdk-u9rr7-f4df14bfa9.json")
+            "C:/job-card-d03e0-firebase-adminsdk-u9rr7-f4df14bfa9.json")
         firebase_admin.initialize_app(cred, {
-            'databaseURL': 'https://job-card.firebaseio.com',
+            'databaseURL': 'https://console.firebase.google.com/u/0/project/job-card-d03e0/firestore/data/~2F',
         }, name='excel_app')
         app = firebase_admin.get_app(name='excel_app')
         self.db = firestore.client(app=app)
