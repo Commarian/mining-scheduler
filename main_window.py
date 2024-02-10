@@ -4,7 +4,7 @@ import pandas as pd
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QListWidget, QListWidgetItem
 
 from csv_data import Record
-from new_jobcard_window import NewJobcardWindow
+
 from new_issue_list_window import NewIssueListWindow
 from firebase_manager import FirebaseManager
 
@@ -23,7 +23,7 @@ class MainWindow(QWidget):
         self.new_issue_list_window = None
 
         new_jobcard_button = QPushButton("New Jobcard", self)
-        new_jobcard_button.clicked.connect(self.show_new_jobcard_window)
+
 
         new_issue_list_button = QPushButton("New Issue List", self)
         new_issue_list_button.clicked.connect(self.show_new_issue_list_window)
@@ -50,10 +50,6 @@ class MainWindow(QWidget):
         #self.populate_jobcards(jobcard_list_widget)
         layout.addWidget(jobcard_list_widget)
 
-    def show_new_jobcard_window(self):
-        #if not self.new_jobcard_window:
-        self.new_jobcard_window = NewJobcardWindow(self.firebase_manager)
-        self.new_jobcard_window.show()
 
     def show_new_issue_list_window(self):
         if not self.new_issue_list_window:
