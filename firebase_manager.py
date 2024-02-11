@@ -6,6 +6,7 @@ from firebase_admin import credentials, firestore
 
 
 class FirebaseManager:
+    issues = []
     def __init__(self):
         script_dir = os.path.dirname(__file__)
         json_path = os.path.join(script_dir, "firebaseadminsdk.json")
@@ -30,17 +31,6 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error saving data to Firestore: {e}")
 
-    def get_jobcards(self):
-        try:
-            # Fetch job card data from Firestore
-            jobcards_ref = self.db.collection(u'jobcards')
-            jobcards = jobcards_ref.get()
-            jobcards_data = [doc.to_dict() for doc in jobcards]
-            print("Fetched Jobcards:", jobcards_data)
-            return jobcards_data
-        except Exception as e:
-            print(f"Error fetching jobcards from Firestore: {e}")
-            return []
 
     def get_data(self, collection_name, document_name):
         try:
@@ -51,3 +41,17 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error fetching collection from Firestore: {e}")
             return []
+
+    def set_issues(self):
+        try:
+            # Fetch job card data from Firestore
+            issues_ref = self.db.collection(u'issues').get()
+            issues_data = [doc.to_dict() for doc in issues_ref]
+
+            print("Fetched issues:", issues_data)
+            self.issues = issues_data
+
+
+        except Exception as e:
+            print(f"Error fetching issues from Firestore: {e}")
+

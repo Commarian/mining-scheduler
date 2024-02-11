@@ -3,38 +3,8 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit
     QCalendarWidget, QHBoxLayout
 from PyQt5.QtCore import QDate, QDateTime, QTime, QRegularExpression
 
-from firebase_manager import FirebaseManager
-
-
-def convert_time(duration, from_unit, to_unit):
-    """
-    Convert time between seconds, hours, and days.
-
-    Parameters:
-    - duration: The time duration to convert.
-    - from_unit: The unit of the input duration ('seconds', 'hours', 'days').
-    - to_unit: The desired unit for the output ('seconds', 'hours', 'days').
-
-    Returns:
-    The converted time duration.
-    """
-    conversion_factors = {
-        ('seconds', 'hours'): 1 / 3600,
-        ('seconds', 'days'): 1 / (3600 * 24),
-        ('hours', 'seconds'): 3600,
-        ('hours', 'days'): 1 / 24,
-        ('days', 'seconds'): 3600 * 24,
-        ('days', 'hours'): 24,
-    }
-
-    if from_unit == to_unit:
-        return int(duration)
-
-    conversion_factor = conversion_factors.get((from_unit, to_unit))
-    if conversion_factor is not None:
-        return int(duration * conversion_factor)
-    else:
-        raise ValueError(f"Conversion from {from_unit} to {to_unit} is not supported.")
+import firebase_manager
+import meth
 
 
 class NewIssueListWindow(QWidget):
@@ -162,31 +132,20 @@ class NewIssueListWindow(QWidget):
         dropdown.addItems(items)
 
     def save_issue(self):
-        person_responsible = self.person_responsible_dropdown.currentText()
-        originator = self.originator_dropdown.currentText()
-        location = self.location_dropdown.currentText()
-        hazard_classification = self.hazard_classification_dropdown.currentText()
-        source = self.source_dropdown.currentText()
-        priority = self.priority_dropdown.currentText()
-        start_date = self.start_date_picker.selectedDate().toString("yyyy-MM-dd")
-        duration = int(self.duration_text.text())
-        end_date = self.start_date_picker.selectedDate().addDays(duration).toString("yyyy-MM-dd")
-        hazard = self.hazard_entry.toPlainText()
-        rectification = self.rectification_entry.toPlainText()
+        data_dict = dict(
+            person_responsible=self.person_responsible_dropdown.currentText(),
+                         originator=self.originator_dropdown.currentText(),
+                         location=self.location_dropdown.currentText(),
+                         hazard_classification=self.hazard_classification_dropdown.currentText(),
+                         source=self.source_dropdown.currentText(),
+                         priority=self.priority_dropdown.currentText(),
+                         start_date=self.start_date_picker.selectedDate().toString("yyyy-MM-dd"),
+                         end_date=self.end_date_picker.selectedDate().toString("yyyy-MM-dd"),
+                         hazard=self.hazard_entry.toPlainText(),
+                         rectification=self.rectification_entry.toPlainText())
 
-        # Add logic to save issue details (you can use Firebase here)
+        self.firebase_manager.save_data("issues",data_dict)
 
-        print(f"Person Responsible: {person_responsible}")
-        print(f"Originator: {originator}")
-        print(f"Location: {location}")
-        print(f"Hazard Classification: {hazard_classification}")
-        print(f"Source: {source}")
-        print(f"Priority: {priority}")
-        print(f"Start Date: {start_date}")
-        print(f"Duration: {duration} days")
-        print(f"End Date: {end_date}")
-        print(f"Hazard: {hazard}")
-        print(f"Rectification: {rectification}")
 
     def update_end_date(self, location):
         start_date = self.start_date_picker.selectedDate()
@@ -204,7 +163,7 @@ class NewIssueListWindow(QWidget):
                 self.remaining_hours = 0
 
         if QDateTime.currentDateTime().addSecs(
-                convert_time(self.remaining_hours, "hours", "seconds")).date() > start_date:
+                meth.convert_time(self.remaining_hours, "hours", "seconds")).date() > start_date:
             start_date = start_date.addDays(1)
 
         start_date = start_date.addDays(self.days)

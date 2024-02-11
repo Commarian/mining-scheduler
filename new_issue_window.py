@@ -1,7 +1,9 @@
 # new_issue_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QFormLayout, QStackedWidget
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QFormLayout, \
+    QStackedWidget
 
 from firebase_manager import FirebaseManager
+
 
 class FieldSetupWidget(QWidget):
     def __init__(self):
@@ -29,6 +31,7 @@ class FieldSetupWidget(QWidget):
         if field_name and field_type:
             self.parent().add_configurable_field({"name": field_name, "type": field_type})
             self.field_name_entry.clear()
+
 
 class NewIssueWindow(QWidget):
     def __init__(self, firebase_manager):
