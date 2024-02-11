@@ -17,13 +17,18 @@ class FirebaseManager:
         app = firebase_admin.get_app(name='excel_app')
         self.db = firestore.client(app=app)
 
-    def save_jobcard_data(self, jobcard_data):
+    def save_data(self, collection_name, data, document=None):
         try:
             # Save job card data to Firestore
-            doc_ref = self.db.collection(u'jobcards').add(jobcard_data)
-            print(f"Jobcard saved to Firestore with ID: {doc_ref}")
+            if document:
+                doc_ref = self.db.collection(collection_name).document(document).set(data, True)
+            else:
+                doc_ref = self.db.collection(collection_name).add(data)
+
+            print(f"Data to save to Firestore {data}")
+            print(f"Data saved to Firestore with ID: {doc_ref}")
         except Exception as e:
-            print(f"Error saving jobcard to Firestore: {e}")
+            print(f"Error saving data to Firestore: {e}")
 
     def get_jobcards(self):
         try:
@@ -39,10 +44,9 @@ class FirebaseManager:
 
     def get_data(self, collection_name, document_name):
         try:
-            #if(document_name not nuklll I need plugins)
-            # Fetch job card data from Firestore
             doc_ref = self.db.collection(collection_name).document(document_name)
             doc = doc_ref.get().to_dict().values()
+            print(f"Firebase Data = {doc}")
             return doc
         except Exception as e:
             print(f"Error fetching collection from Firestore: {e}")
