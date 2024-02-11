@@ -1,60 +1,66 @@
 # main_window.py
-import pandas as pd
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QLineEdit
+from PyQt5.QtCore import Qt
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QListWidget, QListWidgetItem
-
-from csv_data import Record
-
-from new_issue_list_window import NewIssueListWindow
+from new_issue_window import NewIssueWindow
 from firebase_manager import FirebaseManager
+
+class HyperlinkLabel(QLabel):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        self.linkActivated.emit(self.text())
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Jobcard Application")
-        self.setGeometry(100, 100, 400, 400)
+        self.setGeometry(100, 100, 800, 600)  # Increased width for a better layout
 
         # Initialize FirebaseManager with the path to the service account key
         self.firebase_manager = FirebaseManager()
 
-
         self.new_jobcard_window = None
         self.new_issue_list_window = None
 
-        new_jobcard_button = QPushButton("New Jobcard", self)
+        # Left panel with action buttons and search
+        left_panel_layout = QVBoxLayout()
 
+        # Search bar
+        search_line_edit = QLineEdit(self)
+        search_line_edit.setPlaceholderText("Search...")
+        left_panel_layout.addWidget(search_line_edit)
 
-        new_issue_list_button = QPushButton("New Issue List", self)
-        new_issue_list_button.clicked.connect(self.show_new_issue_list_window)
+        # Action buttons styled like hyperlinks
+        add_issue_label = HyperlinkLabel("Add Issue", self)
+        add_issue_label.linkActivated.connect(self.show_new_issue_window)
 
-        exit_button = QPushButton("Exit", self)
-        exit_button.clicked.connect(self.close)
+        export_report_label = HyperlinkLabel("Export/Report", self)
+        export_report_label.linkActivated.connect(self.export_report_function)
 
-        import_csv_button = QPushButton("Import CSV", self)
-        import_csv_button.clicked.connect(self.import_and_upload_csv)
+        left_panel_layout.addWidget(add_issue_label)
+        left_panel_layout.addWidget(export_report_label)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(new_jobcard_button)
-        layout.addWidget(new_issue_list_button)
-        layout.addWidget(import_csv_button)
-        layout.addWidget(exit_button)
+        # Dashboard in the middle
+        dashboard_layout = QVBoxLayout()
 
-
-
-
-
-
-        #Dashboard
+        # You can add widgets/components to the dashboard_layout as needed
+        # For now, let's add a QListWidget to simulate the dashboard
         jobcard_list_widget = QListWidget(self)
-        #self.populate_jobcards(jobcard_list_widget)
-        layout.addWidget(jobcard_list_widget)
+        self.populate_jobcards(jobcard_list_widget)
+        dashboard_layout.addWidget(jobcard_list_widget)
 
+        # Main layout combining left panel and dashboard
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(left_panel_layout)
+        main_layout.addLayout(dashboard_layout)
 
-    def show_new_issue_list_window(self):
-        if not self.new_issue_list_window:
-            self.new_issue_list_window = NewIssueListWindow(self.firebase_manager)
-        self.new_issue_list_window.show()
+    def show_new_issue_window(self):
+        self.new_issue_window = NewIssueWindow(self.firebase_manager)
+        self.new_issue_window.show()
 
     def populate_jobcards(self, jobcard_list_widget):
         try:
@@ -65,7 +71,6 @@ class MainWindow(QWidget):
                 section = jobcard.get("Section", "")
                 supervisor = jobcard.get("Supervisor", "")
                 shift = jobcard.get("Shift", "")
-                # You can include more fields as needed
 
                 # Create a formatted string for display
                 display_text = f"{title} - {section}, {supervisor}, {shift}"
@@ -74,58 +79,8 @@ class MainWindow(QWidget):
                 item = QListWidgetItem(display_text)
                 jobcard_list_widget.addItem(item)
         except Exception as e:
-            print(f"Error fetching jobcards: {e}")
+            print(f"Error fetching job cards: {e}")
 
-    def import_and_upload_csv(self):
-        file_path = 'C:\\Users\\Commarian\\PycharmProjects\\lotto\\csv.csv'
-
-        df = pd.read_csv(file_path)
-        records = []
-        for index, row in df.iterrows():
-            record_data = row.to_dict()
-            record = Record(data=record_data)
-            records.append(record)
-        names_data = """
-        Albert Ntshangase
-        Anton Gregory
-        Benjamin Smith
-        Bongi (Nipho) Mkhwanazi
-        Caroline Greyling
-        Cindrella Venkile
-        Daniel Mokoena
-        Edley van Niekerk
-        Eleanor Mnisi
-        Esaiah Molete
-        Jaco Salim
-        Jannie Engelbreght
-        Jeff Thabede
-        Josua Bekker
-        Jurgen Reynecke
-        Kutlo 
-        Kutlo Mokoto
-        Maryna Smith 
-        Mervin Barnard
-        Michael 
-        Micheal Rudolph
-        Neil Bester
-        Ntabeleng Paneng
-        Riaan Gray
-        Russel Booys
-        Sylvia Ntalo
-        T Kunene
-        Themba Mulambo
-        Thuso Pilane
-        Vusi Mhlanga
-        Yolanda Badenhorst
-        Zane Preller
-        """
-
-        # Split the names and create a list of dictionaries
-        names_list = [name.strip() for name in names_data.split('\n') if name.strip()]
-        collection_name = "company_data"
-        document_name = "people"
-
-        data_list = [{str(i): name} for i, name in enumerate(names_list)]
-
-        for data in data_list:
-            self.firebase_manager.save_data(collection_name, data, document=document_name)
+    def export_report_function(self):
+        # Implement export/report functionality here
+        pass
