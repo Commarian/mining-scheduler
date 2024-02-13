@@ -1,18 +1,20 @@
 # main_window.py
 import pandas as pd
 
-import PyQt5.QtWidgets as q
-from PyQt5 import QtGui
+import PyQt6.QtWidgets as q
+from PyQt6 import QtGui
 
 from new_issue_list_window import NewIssueListWindow
 from firebase_manager import FirebaseManager
 from table_model import TableModel
 
 
-class MainWindow(q.QMainWindow):
+class MainWindow(q.QWidget):
     def __init__(self):
         super().__init__()
 
+        headers = ['End Date', 'Originator', 'Start Date', 'Hazard', 'Source', 'Hazard Classification', 'Rectification',
+                   'Location', 'Priority', 'Person Responsible']
         self.setWindowTitle("Issue Manager")
         self.setGeometry(100, 100, 800, 800)
 
@@ -38,30 +40,39 @@ class MainWindow(q.QMainWindow):
 
         #Table
         table = q.QTableView()
-        data = [
-            [4, 9, 2],
-            [1, 0, 0],
-            [3, 5, 0],
-            [3, 3, 2],
-            [7, 8, 9],
-        ]
-        model = TableModel(data)
+        data = self.convert_issues_to_data()
+        model = TableModel(data, headers)
         table.setModel(model)
-        self.setCentralWidget(table)
+        #self.setCentralWidget(table)
 
-        layout = q.QVBoxLayout(self)
+        layoutV = q.QVBoxLayout(self)
 
-        layout.addWidget(new_jobcard_button)
-        layout.addWidget(new_issue_list_button)
-        layout.addWidget(import_csv_button)
-        layout.addWidget(exit_button)
-        layout.addWidget(table)
-        self.setLayout(layout)
+        layoutV.addWidget(new_jobcard_button)
+        layoutV.addWidget(new_issue_list_button)
+        layoutV.addWidget(import_csv_button)
+        layoutV.addWidget(exit_button)
+
+
+        layoutH = q.QHBoxLayout(self)
+        layoutV.addChildLayout(layoutH)
+        layoutH.addWidget(table)
+
+        self.setLayout(layoutV)
 
     def show_new_issue_list_window(self):
         if not self.new_issue_list_window:
             self.new_issue_list_window = NewIssueListWindow(self.firebase_manager)
         self.new_issue_list_window.show()
+
+    def convert_issues_to_data(self):
+        data = []
+        issues = self.firebase_manager.issues_hash
+        id_list = self.firebase_manager.id_list
+
+        for int in range(len(id_list)):
+            data.append(list(issues.get_val(id_list[int]).values()))
+        print("data = "+str(data))
+        return data
 
 
 

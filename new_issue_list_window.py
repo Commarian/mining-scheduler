@@ -1,7 +1,7 @@
-from PyQt5.QtGui import QRegularExpressionValidator
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QDateEdit, \
+from PyQt6.QtGui import QRegularExpressionValidator
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QDateEdit, \
     QCalendarWidget, QHBoxLayout
-from PyQt5.QtCore import QDate, QDateTime, QTime, QRegularExpression
+from PyQt6.QtCore import QDate, QDateTime, QTime, QRegularExpression
 
 import firebase_manager
 import meth

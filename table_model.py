@@ -1,24 +1,24 @@
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt
-
+from PyQt6 import QtCore, QtWidgets
 
 class TableModel(QtCore.QAbstractTableModel):
-    def __init__(self, data):
+    def __init__(self, data, headers=None):
         super(TableModel, self).__init__()
         self._data = data
+        self._headers = headers if headers else ['Header 1', 'Header 2']
 
     def data(self, index, role):
-        if role == Qt.DisplayRole:
-            # See below for the nested-list data structure.
-            # .row() indexes into the outer list,
-            # .column() indexes into the sub-list
-            return self._data[index.row()][index.column()]
+        return self._data[index.row()][index.column()]
 
-    def rowCount(self, index):
-        # The length of the outer list.
+    def rowCount(self, parent):
         return len(self._data)
 
-    def columnCount(self, index):
-        # The following takes the first sub-list, and returns
-        # the length (only works if all rows are an equal length)
+    def columnCount(self, parent):
         return len(self._data[0])
+
+    def headerData(self, section, orientation, role):
+        if role == QtCore.Qt.ItemDataRole.DisplayRole:
+            if orientation == QtCore.Qt.Orientation.Horizontal:
+                return self._headers[section]
+            elif orientation == QtCore.Qt.Orientation.Vertical:
+                return str(section + 1)
+        return None

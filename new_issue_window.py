@@ -1,5 +1,5 @@
 # new_issue_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QFormLayout, \
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QFormLayout, \
     QStackedWidget
 
 from firebase_manager import FirebaseManager

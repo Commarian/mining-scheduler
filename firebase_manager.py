@@ -4,9 +4,12 @@ import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+import hash_table
+
 
 class FirebaseManager:
-    issues = []
+    issues_hash = hash_table.HashTable(50)
+    id_list = []
     def __init__(self):
         script_dir = os.path.dirname(__file__)
         json_path = os.path.join(script_dir, "firebaseadminsdk.json")
@@ -31,7 +34,6 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error saving data to Firestore: {e}")
 
-
     def get_data(self, collection_name, document_name):
         try:
             doc_ref = self.db.collection(collection_name).document(document_name)
@@ -45,13 +47,20 @@ class FirebaseManager:
     def set_issues(self):
         try:
             # Fetch job card data from Firestore
-            issues_ref = self.db.collection(u'issues').get()
-            issues_data = [doc.to_dict() for doc in issues_ref]
+            issues_coll = self.db.collection(u'issues').get()
 
-            print("Fetched issues:", issues_data)
-            self.issues = issues_data
+            for int in range(len(issues_coll)):
+                self.issues_hash.set_val(issues_coll[int].id, issues_coll[int].to_dict())
+                self.id_list.insert(int, issues_coll[int].id)
+            #for doc_snapshot in issues_coll:
+                #self.issuesDict.append(doc_snapshot.to_dict())
+                #print("id == " + doc_snapshot.id)
+                #print("get( == " + doc_snapshot.get('end_date'))
+                #print("to_dict == " + str(doc_snapshot.to_dict()))
+
+            print(self.issues_hash)
+
 
 
         except Exception as e:
             print(f"Error fetching issues from Firestore: {e}")
-
