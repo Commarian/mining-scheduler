@@ -7,7 +7,13 @@ class TableModel(QtCore.QAbstractTableModel):
         self._headers = headers if headers else ['Header 1', 'Header 2']
 
     def data(self, index, role):
-        return self._data[index.row()][index.column()]
+        value = self._data[index.row()][index.column()]
+
+        if role == QtCore.Qt.ItemDataRole.DisplayRole:
+            return value
+        elif role == QtCore.Qt.ItemDataRole.EditRole:
+            return value
+        return None
 
     def rowCount(self, parent):
         return len(self._data)
@@ -22,3 +28,6 @@ class TableModel(QtCore.QAbstractTableModel):
             elif orientation == QtCore.Qt.Orientation.Vertical:
                 return str(section + 1)
         return None
+
+    def flags(self, index):
+        return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable

@@ -4,6 +4,7 @@ import pandas as pd
 import PyQt6.QtWidgets as q
 from PyQt6 import QtGui
 
+import my_table_view
 from new_issue_list_window import NewIssueListWindow
 from firebase_manager import FirebaseManager
 from table_model import TableModel
@@ -39,10 +40,10 @@ class MainWindow(q.QWidget):
         #import_csv_button.clicked.connect(self.import_and_upload_csv)
 
         #Table
-        table = q.QTableView()
+
         data = self.convert_issues_to_data()
         model = TableModel(data, headers)
-        table.setModel(model)
+        table = my_table_view.MyTableView(model)
         #self.setCentralWidget(table)
 
         layoutV = q.QVBoxLayout(self)
