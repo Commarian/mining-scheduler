@@ -1,10 +1,11 @@
 from PyQt5 import QtCore, QtWidgets
 
+
 class TableModel(QtCore.QAbstractTableModel):
-    def __init__(self, data, headers=None):
+    def __init__(self, data, headers):
         super(TableModel, self).__init__()
         self._data = data
-        self._headers = headers if headers else ['Header 1', 'Header 2']
+        self._headers = headers
 
     def data(self, index, role):
         value = self._data[index.row()][index.column()]
@@ -19,7 +20,9 @@ class TableModel(QtCore.QAbstractTableModel):
         return len(self._data)
 
     def columnCount(self, parent):
-        return len(self._data[0])
+        if len(self._data) > 0:
+            return len(self._data[0])
+        return 0
 
     def headerData(self, section, orientation, role):
         if role == QtCore.Qt.ItemDataRole.DisplayRole:

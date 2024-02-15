@@ -4,12 +4,12 @@ import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-import hash_table
+import statics
 
 
 class FirebaseManager:
-    issues_hash = hash_table.HashTable(50)
-    id_list = []
+    #issues_hash = hash_table.HashTable(50)
+
     def __init__(self):
         script_dir = os.path.dirname(__file__)
         json_path = os.path.join(script_dir, "firebaseadminsdk.json")
@@ -50,15 +50,18 @@ class FirebaseManager:
             issues_coll = self.db.collection(u'issues').get()
 
             for int in range(len(issues_coll)):
-                self.issues_hash.set_val(issues_coll[int].id, issues_coll[int].to_dict())
-                self.id_list.insert(int, issues_coll[int].id)
+                statics.issues_hash.__setitem__(issues_coll[int].id,issues_coll[int].to_dict())
+                #self.issues_hash.set_val(issues_coll[int].id, issues_coll[int].to_dict())
+                statics.id_list.insert(int, issues_coll[int].id)
+
             #for doc_snapshot in issues_coll:
                 #self.issuesDict.append(doc_snapshot.to_dict())
                 #print("id == " + doc_snapshot.id)
                 #print("get( == " + doc_snapshot.get('end_date'))
                 #print("to_dict == " + str(doc_snapshot.to_dict()))
 
-            print(self.issues_hash)
+
+            print(statics.issues_hash)
 
 
 
