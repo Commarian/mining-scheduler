@@ -12,6 +12,7 @@ class MyTableView(QtWidgets.QTableView):
         self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.clicked.connect(self.handleRowSelection)
 
+
     def handleRowSelection(self, index):
         # Get the clicked index and select the entire row
         selection_model = self.selectionModel()

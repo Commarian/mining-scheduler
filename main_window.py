@@ -1,7 +1,7 @@
 # main_window.py
+import sys
 import webbrowser
 
-import pandas as pd
 
 import PyQt5.QtWidgets as q
 from PyQt5.QtCore import pyqtSignal, QUrl
@@ -31,6 +31,12 @@ class MainWindow(q.QWidget):
         # Show the main window only after successful authentication
         # Initialize FirebaseManager with the path to the service account key
 
+        if sys.platform == 'win32' or sys.platform == 'cygwin':  # Covers most Windows setups
+            self.do_windows_specific_task()
+        else:
+            #self.show_authentication_error()
+            print("This code block is designed for Windows environments.")
+
         self.setWindowTitle("Issue Manager")
         self.setGeometry(100, 100, 1400, 800)
 
@@ -55,20 +61,15 @@ class MainWindow(q.QWidget):
         layout.addWidget(add_issue_button)
         layout.addWidget(self.update_issue_button)
         layout.addWidget(exit_button)
-        #layout.addWidget(self.table)
-
-        # Authentication setup
-        self.auth_button = custom_q_pushbutton.generate_button("Authenticate")
-        self.auth_button.clicked.connect(self.start_login_flow)
-        layout.addWidget(self.auth_button)
+        layout.addWidget(self.table)
 
         self.setLayout(layout)
 
-        self.start_login_flow()
-        #self.firebase_manager = FirebaseManager()
-        #self.thread = MultiThread()
-        #self.thread.finished_signal.connect(self.on_thread_finished)
-        #self.thread.start()
+        self.firebase_manager = FirebaseManager()
+        thread = MultiThread(self.firebase_manager.set_issues)
+        thread.finished_signal.connect(self.on_thread_finished)
+        thread.setParent(self)
+        thread.start()
 
     def show_issue_window(self, is_new_issue):
         self.new_issue_list_window = IssueWindow(self.firebase_manager, is_new_issue).show()
@@ -93,43 +94,26 @@ class MainWindow(q.QWidget):
         self.update_issue_button.setDisabled(False)
 
     def on_thread_finished(self):
-        # Example usage
-        # self.authenticate_and_show()
-        # Do anything you need after the set_issues operation is completed
-        print("set_issues operation completed")
+        print("thread finished")
         # Table
         data = self.convert_issues_to_data()
         model = TableModel(data, self.headers)
         self.table.setModel(model)
-
-        self.firebase_manager.set_issues()
-
-    def authenticate_and_show(self):
-        print("authenticate_and_show")
-
-    def handle_sign_in(self):
-        print("handle sign in")
+        self.table.resizeColumnsToContents()
 
     def show_authentication_error(self):
-        error_message = q.QMessageBox.critical(self, "Authentication Error", "Authentication Failed. Please try again.")
+        error_message = q.QMessageBox.critical(self, "Authentication Error", "Authentication error. Please sign in to this computer with a valid company account.")
         self.close()  # Close the application on error
+        sys.exit()
 
-    def check_redirect_uri(self, url):
-        if url.toString().startswith("http://localhost:5000/getAToken"):
-            # ... extract code from URL
-            result = statics.msal_app.acquire_token_by_auth_code_flow(session.get("flow"), url.toEncoded())
-            # ... handle success or error
-            if "access_token" in result:
-                self.on_authentication_success(result)
 
-    def start_login_flow(self):
-        flow = statics.msal_app.initiate_auth_code_flow(scopes=statics.config["scope"], redirect_uri="http://localhost:5000/getAToken")
-        webbrowser.open(flow["auth_uri"])  # Use webbrowser module
-
-    def on_authentication_success(self, result):
-        # Here, store authentication tokens or user info if needed
-        self.fetch_and_update_data()  # Trigger data refresh after authentication
-
-    def fetch_and_update_data(self):
-        #  Handle data fetching from Firebase, ideally in a background thread, and update the UI accordingly
-        pass
+    def do_windows_specific_task(self):
+        # Code that should only run on Windows
+        try:
+            import wmi
+            c = wmi.WMI()
+            for account in c.Win32_UserAccount():
+                if account.SIDType == 1:  # Focus on user accounts
+                    print("Name:", account.Name)
+        except Exception as e:
+            print(e)

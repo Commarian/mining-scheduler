@@ -12,9 +12,15 @@ import statics
 
 class FirebaseManager:
     # issues_hash = hash_table.HashTable(50)
-
     def __init__(self):
-        print("inside FirebaseManager")
+        script_dir = os.path.dirname(__file__)
+        json_path = os.path.join(script_dir, "firebaseadminsdk.json")
+        cred = credentials.Certificate(json_path)
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': 'https://job-card.firebaseio.com',
+        }, name='issues_app')
+        app = firebase_admin.get_app(name='issues_app')
+        statics.firestoredb = firestore.client(app=app)
 
     def save_data(self, collection_name, data, document=None):
         try:
@@ -46,7 +52,6 @@ class FirebaseManager:
 
             for int in range(len(issues_coll)):
                 statics.issues_hash.__setitem__(issues_coll[int].id, issues_coll[int].to_dict())
-                # self.issues_hash.set_val(issues_coll[int].id, issues_coll[int].to_dict())
                 statics.id_list.insert(int, issues_coll[int].id)
 
             # for doc_snapshot in issues_coll:

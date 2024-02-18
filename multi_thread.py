@@ -6,19 +6,18 @@ from firebase_admin import credentials, firestore
 from msal import PublicClientApplication
 
 import statics
+from firebase_manager import FirebaseManager
 
 
 class MultiThread(QThread):
-    finished_signal = pyqtSignal()
+    finished_signal = pyqtSignal()  # Signal to indicate completion
 
-    def __init__(self):
+    def __init__(self, method):
         super(MultiThread, self).__init__()
 
+        # Create a self-invoking lambda to avoid issues with method execution
+        self.task = lambda: method()
 
     def run(self):
-        # Azure AD Tenant, Client ID, and Client Secret
-
-
-
-
-        self.finished_signal.emit()
+        self.task()  # Execute the passed method within the thread
+        self.finished_signal.emit()  # Emit signal after task is complete
