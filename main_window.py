@@ -1,86 +1,135 @@
 # main_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QLineEdit
-from PyQt5.QtCore import Qt
+import webbrowser
 
-from new_issue_window import NewIssueWindow
+import pandas as pd
+
+import PyQt5.QtWidgets as q
+from PyQt5.QtCore import pyqtSignal, QUrl
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from flask import session
+
+import custom_q_pushbutton
+import my_table_view
+import statics
+from multi_thread import MultiThread
+from new_issue_list_window import IssueWindow
 from firebase_manager import FirebaseManager
+from sign_in_dialog import SignInDialog
+from table_model import TableModel
+import firebase_admin
+import os
+import msal
+from msal import PublicClientApplication
 
-class HyperlinkLabel(QLabel):
-    def __init__(self, text, parent=None):
-        super().__init__(text, parent)
-        self.setCursor(Qt.PointingHandCursor)
 
-    def mousePressEvent(self, event):
-        self.linkActivated.emit(self.text())
+class MainWindow(q.QWidget):
+    headers = ['End Date', 'Originator', 'Start Date', 'Hazard', 'Source', 'Hazard Classification', 'Rectification',
+               'Location', 'Priority', 'Person Responsible']
 
-class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-
-        self.setWindowTitle("Jobcard Application")
-        self.setGeometry(100, 100, 800, 600)  # Increased width for a better layout
-
+        # Show the main window only after successful authentication
         # Initialize FirebaseManager with the path to the service account key
-        self.firebase_manager = FirebaseManager()
 
-        self.new_jobcard_window = None
+        self.setWindowTitle("Issue Manager")
+        self.setGeometry(100, 100, 1400, 800)
+
         self.new_issue_list_window = None
 
-        # Left panel with action buttons and search
-        left_panel_layout = QVBoxLayout()
+        add_issue_button = custom_q_pushbutton.generate_button("Add Issue")
+        add_issue_button.clicked.connect(lambda: self.show_issue_window(True))
 
-        # Search bar
-        search_line_edit = QLineEdit(self)
-        search_line_edit.setPlaceholderText("Search...")
-        left_panel_layout.addWidget(search_line_edit)
+        self.update_issue_button = custom_q_pushbutton.generate_button("Update Issue")
+        self.update_issue_button.clicked.connect(lambda: self.show_issue_window(False))
+        self.update_issue_button.setDisabled(True)
 
-        # Action buttons styled like hyperlinks
-        add_issue_label = HyperlinkLabel("Add Issue", self)
-        add_issue_label.linkActivated.connect(self.show_new_issue_window)
+        exit_button = custom_q_pushbutton.generate_button("Exit")
+        exit_button.clicked.connect(self.close)
 
-        export_report_label = HyperlinkLabel("Export/Report", self)
-        export_report_label.linkActivated.connect(self.export_report_function)
+        model = TableModel([], self.headers)
+        self.table = my_table_view.MyTableView(model)
+        self.table.rowSelected.connect(self.handleRowSelected)
 
-        left_panel_layout.addWidget(add_issue_label)
-        left_panel_layout.addWidget(export_report_label)
+        layout = q.QVBoxLayout(self)
 
-        # Dashboard in the middle
-        dashboard_layout = QVBoxLayout()
+        layout.addWidget(add_issue_button)
+        layout.addWidget(self.update_issue_button)
+        layout.addWidget(exit_button)
+        #layout.addWidget(self.table)
 
-        # You can add widgets/components to the dashboard_layout as needed
-        # For now, let's add a QListWidget to simulate the dashboard
-        jobcard_list_widget = QListWidget(self)
-        self.populate_jobcards(jobcard_list_widget)
-        dashboard_layout.addWidget(jobcard_list_widget)
+        # Authentication setup
+        self.auth_button = custom_q_pushbutton.generate_button("Authenticate")
+        self.auth_button.clicked.connect(self.start_login_flow)
+        layout.addWidget(self.auth_button)
 
-        # Main layout combining left panel and dashboard
-        main_layout = QHBoxLayout(self)
-        main_layout.addLayout(left_panel_layout)
-        main_layout.addLayout(dashboard_layout)
+        self.setLayout(layout)
 
-    def show_new_issue_window(self):
-        self.new_issue_window = NewIssueWindow(self.firebase_manager)
-        self.new_issue_window.show()
+        self.start_login_flow()
+        #self.firebase_manager = FirebaseManager()
+        #self.thread = MultiThread()
+        #self.thread.finished_signal.connect(self.on_thread_finished)
+        #self.thread.start()
 
-    def populate_jobcards(self, jobcard_list_widget):
-        try:
-            # Fetch job card data from Firestore
-            jobcards = self.firebase_manager.get_jobcards()
-            for jobcard in jobcards:
-                title = jobcard.get("Title", "Unknown Title")
-                section = jobcard.get("Section", "")
-                supervisor = jobcard.get("Supervisor", "")
-                shift = jobcard.get("Shift", "")
+    def show_issue_window(self, is_new_issue):
+        self.new_issue_list_window = IssueWindow(self.firebase_manager, is_new_issue).show()
 
-                # Create a formatted string for display
-                display_text = f"{title} - {section}, {supervisor}, {shift}"
+    def convert_issues_to_data(self):
+        data = []
+        issues = statics.issues_hash
+        id_list = statics.id_list
 
-                # Create a QListWidgetItem with the formatted text
-                item = QListWidgetItem(display_text)
-                jobcard_list_widget.addItem(item)
-        except Exception as e:
-            print(f"Error fetching job cards: {e}")
+        for int in range(len(id_list)):
+            data.append(list(issues.get(id_list[int]).values()))
+        print("data = " + str(data))
+        return data
 
-    def export_report_function(self):
-        # Implement export/report functionality here
+    def handleRowSelected(self):
+        # Get the selected row number
+        selected_index = self.table.selectionModel().currentIndex()
+        statics.row_selected = selected_index.row()
+        # Implement the desired action when a row is selected
+        print("Row selected in main window:", statics.row_selected)
+        # Add your custom logic here
+        self.update_issue_button.setDisabled(False)
+
+    def on_thread_finished(self):
+        # Example usage
+        # self.authenticate_and_show()
+        # Do anything you need after the set_issues operation is completed
+        print("set_issues operation completed")
+        # Table
+        data = self.convert_issues_to_data()
+        model = TableModel(data, self.headers)
+        self.table.setModel(model)
+
+        self.firebase_manager.set_issues()
+
+    def authenticate_and_show(self):
+        print("authenticate_and_show")
+
+    def handle_sign_in(self):
+        print("handle sign in")
+
+    def show_authentication_error(self):
+        error_message = q.QMessageBox.critical(self, "Authentication Error", "Authentication Failed. Please try again.")
+        self.close()  # Close the application on error
+
+    def check_redirect_uri(self, url):
+        if url.toString().startswith("http://localhost:5000/getAToken"):
+            # ... extract code from URL
+            result = statics.msal_app.acquire_token_by_auth_code_flow(session.get("flow"), url.toEncoded())
+            # ... handle success or error
+            if "access_token" in result:
+                self.on_authentication_success(result)
+
+    def start_login_flow(self):
+        flow = statics.msal_app.initiate_auth_code_flow(scopes=statics.config["scope"], redirect_uri="http://localhost:5000/getAToken")
+        webbrowser.open(flow["auth_uri"])  # Use webbrowser module
+
+    def on_authentication_success(self, result):
+        # Here, store authentication tokens or user info if needed
+        self.fetch_and_update_data()  # Trigger data refresh after authentication
+
+    def fetch_and_update_data(self):
+        #  Handle data fetching from Firebase, ideally in a background thread, and update the UI accordingly
         pass
