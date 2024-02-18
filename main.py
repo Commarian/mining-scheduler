@@ -13,13 +13,18 @@ import statics
 from main_window import MainWindow
 from sign_in_dialog import SignInDialog
 
+import wmi
 
 
+import getpass
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
+    c = wmi.WMI()
+    for account in c.Win32_UserAccount():
+        if account.SIDType == 1:  # Focus on user accounts
+            print("Name:", account.Name)
     script_dir = os.path.dirname(__file__)
     json_path = os.path.join(script_dir, "firebaseadminsdk.json")
     # Initialize Firebase with offline persistence
