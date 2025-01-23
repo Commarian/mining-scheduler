@@ -112,6 +112,7 @@ class MainWindow(q.QWidget):
         try:
             import wmi
             c = wmi.WMI()
+            c.Win32_UserAccount()
             for account in c.Win32_UserAccount():
                 if account.SIDType == 1:  # Focus on user accounts
                     print("Name:", account.Name)
