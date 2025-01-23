@@ -1,8 +1,8 @@
-import os
+
 import re
-import subprocess
+import win32api
 import win32com.client
-from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 
 class AuthWindow(QWidget):
@@ -31,33 +31,17 @@ class AuthWindow(QWidget):
         self.setWindowTitle("Login Status")
         self.resize(400, 200)
 
-
-# if __name__ == "__main__":
-#     app = QApplication([])
-#     window = LoginStatusApp()
-#     window.show()
-#     app.exec()
-def get_microsoft_account():
-    try:
-        obj = win32com.client.Dispatch("WScript.Network")
-        user = obj.UserName  # Fetches the logged-in user
-        return user  # Returns domain\username or email
-    except Exception as e:
-        return str(e)
 def get_current_user():
     """Retrieve the current logged-in user's username."""
     try:
-        # Attempt to fetch the username
-
-
-
-
-
-        print(f"Logged-in Microsoft account: {get_microsoft_account()}")
-
+        # NameUserPrincipal should return something like user@domain for Microsoft accounts
+        NAME_USER_PRINCIPAL = 8  # constant from PyWin32
+        user_principal = win32api.GetUserNameEx(NAME_USER_PRINCIPAL)
+        print(f"User Principal: {user_principal}")
+        """This printed: User Principal: drikus@ukwazi.com"""
     except Exception as e:
         username = "Unknown"
-    return username
+    return "anyUser@springbok.com"
 
 
 def is_valid_account(username):
@@ -66,7 +50,7 @@ def is_valid_account(username):
     """
     # Example domains for validation
     microsoft_domains = ["@outlook.com", "@hotmail.com", "@gmail.com", "@microsoft.com"]
-    company_domain = "@examplecompany.com"  # Replace with your company domain
+    company_domain = "@springbok.com"
 
     # Check if username is an email
     if re.match(r".+@.+\..+", username):
@@ -76,5 +60,5 @@ def is_valid_account(username):
         elif username.endswith(company_domain):
             return True, "Company Account"
         else:
-            return False, "Unrecognized Email Domain"
+            return False, "Unrecognized Email Domain"#TODO change all these GPT messages to sensible ones
     return False, "Not an Email"
