@@ -60,20 +60,6 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # ===========================
-        #   Initialize members
-        # ===========================
-        self.headers = [
-            'End Date', 'Originator', 'Start Date', 'Hazard', 'Source',
-            'Hazard Classification', 'Rectification', 'Location', 'Priority', 
-            'Person Responsible'
-        ]
-        self.new_issue_list_window = None
-
-        # Optional: Windows-specific logic
-        if sys.platform in ["win32", "cygwin"]:
-            self.do_windows_specific_task()
-
         # Initialize the main parts
         self.create_menu_bar()
         self.create_toolbar()
@@ -154,7 +140,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # Create the table
-        model = TableModel([], self.headers)
+        model = TableModel([], statics.table_headers)
         self.table = my_table_view.MyTableView(model)
         self.table.setAlternatingRowColors(True)
         self.table.rowSelected.connect(self.handleRowSelected)
@@ -178,7 +164,7 @@ class MainWindow(QMainWindow):
         Update the table model with new data.
         """
         data = self.convert_issues_to_data()
-        model = TableModel(data, self.headers)
+        model = TableModel(data, statics.table_headers)
         self.table.setModel(model)
         self.table.resizeColumnsToContents()
         self.statusBar().showMessage("Data loaded successfully")
@@ -221,28 +207,6 @@ class MainWindow(QMainWindow):
         """
         statics.row_selected = index.row()
         self.show_issue_window(is_new_issue=False)
-
-    # ------------------------------------------------
-    #   Windows-Specific Logic
-    # ------------------------------------------------
-    def do_windows_specific_task(self):
-        try:
-            import wmi
-            c = wmi.WMI()
-            for account in c.Win32_UserAccount():
-                if account.SIDType == 1:  # user accounts only
-                    print("Name:", account.Name)
-        except Exception as e:
-            print(e)
-
-    def show_authentication_error(self):
-        QMessageBox.critical(
-            self,
-            "Authentication Error",
-            "Authentication error. Please sign in to this computer with a valid company account."
-        )
-        self.close()
-        sys.exit()
 
 
 # Example usage if you need a standalone run:

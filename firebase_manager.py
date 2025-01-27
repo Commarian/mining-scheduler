@@ -84,23 +84,34 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error saving data to Firestore: {e}")
 
-    def get_data(self, collection_name, document_name):
+    def get_data(self, collection_name: str, document_name: str) -> list:
         """
-        Example get method if you want a single document's data.
+        For a document whose fields are numbered string keys (e.g. "0", "1", "2", ...),
+        return the values in ascending numeric order as a Python list.
+        Example doc structure:
+            {
+                "0": "Albert Ntshangase",
+                "1": "Anton Gregory",
+                "10": "Jaco Salim",
+                ...
+            }
         """
         try:
             doc_ref = statics.firestoredb.collection(collection_name).document(document_name)
-            doc = doc_ref.get()
-            if doc.exists:
-                data = doc.to_dict()
-                print(f"Fetched from Firestore: {data}")
-                return data
+            doc_snapshot = doc_ref.get()
+            if doc_snapshot.exists:
+                data_dict = doc_snapshot.to_dict()  # e.g. {"0": "Albert", "1": "Anton", "10": "Jaco", ...}
+                # Convert the string keys ("0", "1", "10") to integers, sort them, then retrieve values.
+                sorted_keys = sorted(data_dict.keys(), key=lambda k: int(k))
+                return [data_dict[k] for k in sorted_keys]
             else:
-                print("Document does not exist.")
-                return {}
+                print(f"Document '{document_name}' does not exist in '{collection_name}'.")
+                return []
         except Exception as e:
             print(f"Error fetching document from Firestore: {e}")
-            return {}
+            return []
+
+
 
     # --------------------------------------------------
     #   Basic Cache Logic

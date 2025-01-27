@@ -9,8 +9,8 @@ from main_window import MainWindow
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    #auth_window = AuthWindow() #this is the real way of calling it
-    #auth_window.show() #this is the real way of calling it
+    auth_window = AuthWindow() #this is the real way of calling it
+    auth_window.show() #this is the real way of calling it
     #for testing use:
-    MainWindow().show()
+    #MainWindow().show()
     sys.exit(app.exec())

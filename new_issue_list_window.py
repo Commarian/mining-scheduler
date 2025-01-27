@@ -31,10 +31,10 @@ class IssueWindow(QWidget):
         update_end_date = QDate.currentDate()
         if is_new_issue:
             priority_items = ["Critical", "Urgent", "High (A)", "Medium (B)", "Low (C)"]
-            people_items = [str(person) for person in self.firebase_manager.get_data("company_data", "people")]
-            locations_items = [str(location) for location in self.firebase_manager.get_data("company_data", "locations")]
-            issue_sources_items = [str(location) for location in
-                                   self.firebase_manager.get_data("company_data", "issue_sources")]
+            # Directly fetch the list from Firestore (already a list).
+            people_items = self.firebase_manager.get_data("company_data", "people")
+            locations_items = self.firebase_manager.get_data("company_data", "locations")
+            issue_sources_items = self.firebase_manager.get_data("company_data", "issue_sources")
         else:
             if len(statics.id_list) > 0 and statics.row_selected is not None:
                 selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
@@ -44,7 +44,6 @@ class IssueWindow(QWidget):
                 end_date = selected_row.get("end_date")
                 update_end_date = QDate.fromString(end_date, 'yyyy-MM-dd')
                 priority_items.append(selected_row.get("priority"))
-                #TODO change dropdown adding items wrongly
             else:
                 print("sum ting wong")
                 print('self.close()')
@@ -55,14 +54,6 @@ class IssueWindow(QWidget):
         self.person_responsible_label = QLabel("Person Responsible:")
         self.person_responsible_dropdown = QComboBox()
         self.populate_dropdown(self.person_responsible_dropdown, people_items, is_new_issue)
-
-
-
-        self.originator_label = QLabel("Originator:")
-        self.originator_dropdown = QComboBox()
-        self.populate_dropdown(self.originator_dropdown,
-                               "")  # TODO: Remove originator and link to profile signed in
-        # TODO or maybe just leave it in and grey it out
 
         self.hazard_label = QLabel("Hazard:")
         self.hazard_entry = QTextEdit()
@@ -97,10 +88,7 @@ class IssueWindow(QWidget):
         if not is_new_issue:
             self.end_date_picker.setMinimumDate(update_end_date)
             self.end_date_picker.setSelectedDate(update_end_date)
-
-
-
-
+            
         self.location_label = QLabel("Location:")
         self.location_dropdown = QComboBox()
         self.populate_dropdown(self.location_dropdown, locations_items, is_new_issue)
@@ -128,9 +116,8 @@ class IssueWindow(QWidget):
 
         form_layout.addRow(self.person_responsible_label, self.person_responsible_dropdown)
         form_layout.addRow(self.location_label, self.location_dropdown)
-        if is_new_issue:
-            form_layout.addRow(self.originator_label, self.originator_dropdown)
 
+        if is_new_issue:
             form_layout.addRow(self.hazard_label, self.hazard_entry)
             form_layout.addRow(self.hazard_classification_label, self.hazard_classification_dropdown)
         form_layout.addRow(self.priority_label, self.priority_dropdown)
@@ -184,7 +171,7 @@ class IssueWindow(QWidget):
     def save_issue(self):
         data_dict = dict(
             person_responsible=self.person_responsible_dropdown.currentText(),
-            originator=self.originator_dropdown.currentText(),
+            originator=statics.logged_in_user,
             location=self.location_dropdown.currentText(),
             hazard_classification=self.hazard_classification_dropdown.currentText(),
             source=self.source_dropdown.currentText(),

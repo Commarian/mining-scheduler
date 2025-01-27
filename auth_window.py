@@ -2,6 +2,7 @@ import sys
 import re
 import bcrypt
 import win32api
+import statics
 
 from PyQt5.QtWidgets import (
     QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, QApplication, 
@@ -71,6 +72,7 @@ def is_valid_account(username, company):
     """
     valid_users = COMPANY_USERS.get(company, [])
     if username in valid_users:
+        statics.logged_in_user = username #FIXME need to get a real user name and surname - this is getting the email - not here
         return True, "Authenticated successfully."
     else:
         return False, "Authentication failed."
@@ -245,8 +247,6 @@ class AuthWindow(QWidget):
             else:
                 # Clear any old saved credentials
                 self.clear_saved_credentials()
-
-            QMessageBox.information(self, 'Success', 'Authentication Successful!')
             self.close()
             self.open_main_window()
         else:
