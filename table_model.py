@@ -1,5 +1,5 @@
-from PyQt5 import QtCore, QtWidgets
-
+# table_model.py
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 class TableModel(QtCore.QAbstractTableModel):
     def __init__(self, data, headers):
@@ -8,19 +8,50 @@ class TableModel(QtCore.QAbstractTableModel):
         self._headers = headers
 
     def data(self, index, role):
+        # Get the cell value normally
         value = self._data[index.row()][index.column()]
 
+        # For normal display
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             return value
-        elif role == QtCore.Qt.ItemDataRole.EditRole:
+
+        # Customize the font appearance
+        if role == QtCore.Qt.ItemDataRole.FontRole:
+            # Get the entire row
+            row_data = self._data[index.row()]
+            # Make sure there are enough columns (Overdue and Status are columns 10 and 11)
+            if len(row_data) >= 12:
+                overdue = row_data[10]
+                status = row_data[11]
+                font = QtGui.QFont()
+                # If overdue and still open, underline the text
+                if overdue == "Yes" and status == "Open":
+                    font.setUnderline(True)
+                return font
+
+        # Customize the text color
+        if role == QtCore.Qt.ItemDataRole.ForegroundRole:
+            row_data = self._data[index.row()]
+            if len(row_data) >= 12:
+                overdue = row_data[10]
+                status = row_data[11]
+                # Red text for overdue open issues, grey for overdue but closed
+                if overdue == "Yes":
+                    if status == "Open":
+                        return QtGui.QBrush(QtGui.QColor("red"))
+                    else:
+                        return QtGui.QBrush(QtGui.QColor("gray"))
+
+        if role == QtCore.Qt.ItemDataRole.EditRole:
             return value
+
         return None
 
     def rowCount(self, parent):
         return len(self._data)
 
     def columnCount(self, parent):
-        if len(self._data) > 0:
+        if self._data:
             return len(self._data[0])
         return 0
 
@@ -33,4 +64,5 @@ class TableModel(QtCore.QAbstractTableModel):
         return None
 
     def flags(self, index):
-        return QtCore.Qt.ItemFlag.ItemIsEnabled | QtCore.Qt.ItemFlag.ItemIsSelectable
+        return (QtCore.Qt.ItemFlag.ItemIsEnabled | 
+                QtCore.Qt.ItemFlag.ItemIsSelectable)

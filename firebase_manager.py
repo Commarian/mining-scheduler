@@ -29,23 +29,25 @@ class FirebaseManager:
 
         # For caching
         self.local_cache_file = "cached_issues.json"  # File to store data
-        self.cache_expiry_seconds = 300  # 5 minutes, for example
+        self.cache_expiry_seconds = 20000  # 5 minutes, for example
 
     # --------------------------------------------------
     #   Public Methods (Called from MainWindow, etc.)
     # --------------------------------------------------
-    def checkCacheAndFetch(self):
+    def alwaysFetchAndCache(self):
         """
-        Called to ensure we have up-to-date issues in `statics.issues_hash` and `statics.id_list`.
-        If local cache is valid, loads from file; otherwise fetches from Firestore and saves cache.
+        1) Load local cache into memory (for immediate display).
+        2) Then fetch from Firestore, overwriting local data.
+        3) Save new data to local cache.
         """
-        if self.is_cache_valid():
-            print("FirebaseManager: Local cache is valid. Loading from local cache.")
-            self.load_local_cache()
-        else:
-            print("FirebaseManager: Cache is stale or does not exist. Fetching from Firestore.")
-            self.set_issues()      # Fetch from Firestore, populate statics
-            self.save_local_cache()  # Then save to local cache
+        print("[FirebaseManager] Loading local cache first...")
+        self.load_local_cache()
+
+        print("[FirebaseManager] Now fetching from Firestore for newest data...")
+        self.set_issues()  # fetch from Firestore
+
+        print("[FirebaseManager] Saving fresh data to local cache...")
+        self.save_local_cache()
 
     def set_issues(self):
         """
@@ -72,7 +74,7 @@ class FirebaseManager:
 
     def save_data(self, collection_name, data, document=None):
         """
-        Example of how to save job card data to a specific Firestore collection.
+        Save data to Firestore. Then fetch new data -> local cache -> memory.
         """
         try:
             if document:
@@ -80,9 +82,15 @@ class FirebaseManager:
             else:
                 statics.firestoredb.collection(collection_name).add(data)
 
-            print(f"Data saved to Firestore: {data}")
+            print(f"[FirebaseManager] Data saved to Firestore: {data}")
+
+            # Optionally, refetch so you always have updated data
+            self.set_issues()
+            self.save_local_cache()
+
         except Exception as e:
-            print(f"Error saving data to Firestore: {e}")
+            print(f"[FirebaseManager] Error saving data to Firestore: {e}")
+
 
     def get_data(self, collection_name: str, document_name: str) -> list:
         """
@@ -112,24 +120,6 @@ class FirebaseManager:
             return []
 
 
-
-    # --------------------------------------------------
-    #   Basic Cache Logic
-    # --------------------------------------------------
-    def is_cache_valid(self):
-        """
-        Returns True if the cache file exists and is "fresh".
-        In this example, we base "freshness" on file modification time 
-        vs. `self.cache_expiry_seconds`.
-        """
-        if not os.path.exists(self.local_cache_file):
-            return False
-
-        file_mtime = os.path.getmtime(self.local_cache_file)
-        now = time.time()
-        if now - file_mtime < self.cache_expiry_seconds:
-            return True
-        return False
 
     def load_local_cache(self):
         """
@@ -185,3 +175,4 @@ class FirebaseManager:
 
     def verify_microsoft_token(self, token):
         print("Verifying Microsoft token... (stub)")
+

@@ -24,6 +24,3 @@ class MyTableView(QtWidgets.QTableView):
                         range(self.model().columnCount(QtCore.QModelIndex()))]
 
 
-        print("Selected Row:", selected_row)
-        self.rowSelected.emit(selected_row)
-

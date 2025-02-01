@@ -12,7 +12,12 @@ TENANT_ID = '17384930-4ac0-4b0b-94ae-e6adfeef408e'
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 
 CLIENT_SECRET = '935eda0c-b184-472a-8b36-bf037d93a4ee' # For organizational accounts
-
+#TODO End date -> due date + date completed
+#TODO Department i.e construction
+#TODO Person responsible should be the one closing it
+#TODO Reassign 
+#TODO Approver
+#TODO progress
 config = {
     "authority": AUTHORITY,
     "client_id": CLIENT_ID,
@@ -24,8 +29,25 @@ msal_app = msal.ConfidentialClientApplication(config)
         # ===========================
         #   Initialize members
         # ===========================
+# statics.py
+# statics.py
+
 table_headers = [
-    'End Date', 'Originator', 'Start Date', 'Hazard', 'Source',
-    'Hazard Classification', 'Rectification', 'Location', 'Priority', 
-    'Person Responsible'
+    'Due Date',           # renamed from "End Date"
+    'Originator',
+    'Start Date',
+    'Hazard',
+    'Source',
+    'Hazard Classification',
+    'Rectification',
+    'Location',
+    'Priority', 
+    'Person Responsible',
+    'Progress',           # new column – numeric 0–100 (shown as a progress bar)
+    'Date Completed',     # new column – when the issue was closed
+    'Overdue',
+    'Status'
 ]
+
+# (If you later decide to include an "Approver" field, you can add it here too.)
+
