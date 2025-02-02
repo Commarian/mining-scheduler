@@ -1,3 +1,10 @@
 /csv.csv
 /.idea
 /__pycache__
+__pycache__/firebase_manager.cpython-310.pyc
+__pycache__/main_window.cpython-310.pyc
+__pycache__/multi_thread.cpython-310.pyc
+__pycache__/my_table_view.cpython-310.pyc
+__pycache__/new_issue_list_window.cpython-310.pyc
+__pycache__/statics.cpython-310.pyc
+__pycache__/table_model.cpython-310.pyc
