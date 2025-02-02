@@ -1,7 +1,5 @@
-import os
 import sys
 
-import firebase_admin
 from PyQt5.QtWidgets import QApplication
 
 from auth_window import AuthWindow
@@ -13,4 +11,6 @@ if __name__ == "__main__":
     auth_window.show() #this is the real way of calling it
     #for testing use:
     #MainWindow().show()
+
+
     sys.exit(app.exec())

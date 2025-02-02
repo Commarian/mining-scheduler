@@ -1,12 +1,9 @@
 # firebase_manager.py
 
 import os
-import json
-import time
 
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
-from msal import PublicClientApplication
+from firebase_admin import credentials, firestore
 
 import statics
 
@@ -14,7 +11,7 @@ class FirebaseManager:
     def __init__(self):
         # Initialize the Firebase app with your service account
         script_dir = os.path.dirname(__file__)
-        json_path = os.path.join(script_dir, "firebaseadminsdk.json")
+        json_path = os.path.join(script_dir, "docs/firebaseadminsdk.json")
 
         cred = credentials.Certificate(json_path)
         # Initialize a named app to avoid conflicts if multiple apps are used
@@ -26,10 +23,6 @@ class FirebaseManager:
 
         app = firebase_admin.get_app(name='issues_app')
         statics.firestoredb = firestore.client(app=app)
-
-        # For caching
-        self.local_cache_file = "cached_issues.json"  # File to store data
-        self.cache_expiry_seconds = 20000  # 5 minutes, for example
 
     # --------------------------------------------------
     #   Public Methods (Called from MainWindow, etc.)

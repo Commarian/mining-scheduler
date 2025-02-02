@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QFont, QIcon
 
-from main_window import MainWindow
+from loading_dialog import LoadingDialog
 
 # ================================
 # Configuration and Setup
@@ -259,10 +259,10 @@ class AuthWindow(QWidget):
                 QMessageBox.critical(self, 'Error', 'Maximum attempts reached. Exiting application.')
                 sys.exit(1)
 
-    def open_main_window(self):
+    def start_loading_dialog(self):
         """
         Launch the main window upon success.
         """
-        self.main_window = MainWindow()
-        self.main_window.show()
+        loading_dialog = LoadingDialog()
+        loading_dialog.show()
 
