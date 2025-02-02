@@ -74,41 +74,48 @@ class MainWindow(QMainWindow):
         self.firebase_manager.load_local_cache()
         self.create_central_widget()
 
-        # 2) Start a background thread to fetch fresh data from Firestore
-        fetch_thread = MultiThread(self.fetch_andCacheIssues)
-        fetch_thread.finished_signal.connect(self.on_thread_finished)
-        fetch_thread.start()
+        # 2) Create a thread object as a member variable so it won't get destroyed
+        self.fetch_thread = MultiThread(self.fetch_andCacheIssues)
+        self.fetch_thread.finished_signal.connect(self.on_thread_finished)
+
+        # Optional: once the thread actually finishes, let Qt clean it up
+        self.fetch_thread.finished.connect(self.fetch_thread.deleteLater)
+
+        # 3) Start the thread
+        self.fetch_thread.start()
+
+    # ---------------------------
+    #   Window Close Handling
+    # ---------------------------
+    def closeEvent(self, event):
+        """
+        If the thread is still running, we politely ask it to quit and wait for it.
+        This avoids 'QThread: Destroyed while thread is still running' errors.
+        """
+        if hasattr(self, 'fetch_thread') and self.fetch_thread.isRunning():
+            self.fetch_thread.quit()
+            self.fetch_thread.wait()
+        super().closeEvent(event)
 
     # ------------------------------------------------
     #   UI: Menu, Toolbar, Status Bar, Central Widget
     # ------------------------------------------------
     def create_menu_bar(self):
-        """
-        A typical menu bar with “File” → “Exit”. 
-        You can add more menus (e.g. Edit, View, Help) as needed.
-        """
         menu_bar = self.menuBar()
-
-        # File Menu
         file_menu = menu_bar.addMenu("File")
 
-        # Exit action
         exit_action = QAction("Exit", self)
         exit_action.setShortcut(QKeySequence.Quit)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
     def create_toolbar(self):
-        """
-        A top toolbar with Add, Update, and Exit actions.
-        Using QToolBar for a modern, icon-capable toolbar.
-        """
         toolbar = QToolBar("Main Toolbar")
-        toolbar.setMovable(False)  # Optional: disable moving the toolbar around
+        toolbar.setMovable(False)
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
         # Add Issue action
-        add_icon = QIcon()  # If you have an icon, do QIcon("path/to/icon.png")
+        add_icon = QIcon()
         add_action = QAction(add_icon, "Add Issue", self)
         add_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
         toolbar.addAction(add_action)
@@ -116,7 +123,7 @@ class MainWindow(QMainWindow):
         # Update Issue action
         update_icon = QIcon()
         self.update_action = QAction(update_icon, "Update Issue", self)
-        self.update_action.setDisabled(True)  # Disabled until row is selected
+        self.update_action.setDisabled(True)
         self.update_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
         toolbar.addAction(self.update_action)
 
@@ -127,9 +134,6 @@ class MainWindow(QMainWindow):
         toolbar.addAction(exit_action)
 
     def create_status_bar(self):
-        """
-        A status bar at the bottom of the main window.
-        """
         status_bar = QStatusBar()
         self.setStatusBar(status_bar)
         self.statusBar().showMessage("Ready")
@@ -145,35 +149,29 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.table)
 
         # Assign the ProgressBarDelegate to your 'Progress' column
-        progress_delegate = ProgressBarDelegate(self.table)
-        progress_col_index = statics.table_headers.index("Progress")  # e.g. 'Progress'
-        self.table.setItemDelegateForColumn(progress_col_index, progress_delegate)
+        if "Progress" in statics.table_headers:
+            progress_delegate = ProgressBarDelegate(self.table)
+            progress_col_index = statics.table_headers.index("Progress")
+            self.table.setItemDelegateForColumn(progress_col_index, progress_delegate)
 
-        # Connect signals
         self.table.rowSelected.connect(self.handleRowSelected)
         self.table.doubleClicked.connect(self.handleDoubleClick)
-        
+
         central_widget.setLayout(layout)
 
     # ------------------------------------------------
     #   Data / Firebase Threading
     # ------------------------------------------------
-    def fetch_and_cache_issues(self):
-        """
-        This is run inside a thread to keep the UI responsive.
-        """
-        self.firebase_manager.checkCacheAndFetch()
+    def fetch_andCacheIssues(self):
+        self.firebase_manager.set_issues()
+        self.firebase_manager.save_local_cache()
 
     def on_thread_finished(self):
-        """
-        Called when fetch_and_cache_issues() completes.
-        Update the table model with new data.
-        """
         data = self.convert_issues_to_data()
         model = TableModel(data, statics.table_headers)
         self.table.setModel(model)
         self.table.resizeColumnsToContents()
-        self.statusBar().showMessage("Data loaded successfully")
+        self.statusBar().showMessage("Data loaded successfully from Firestore.")
 
     def convert_issues_to_data(self):
         """
