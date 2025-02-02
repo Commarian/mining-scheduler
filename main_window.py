@@ -30,7 +30,6 @@ class MainWindow(QMainWindow):
         self.create_status_bar()
         self.create_central_widget()
 
-        self.refreshTable()
 
 
     # ---------------------------
@@ -63,20 +62,20 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
         add_icon = QIcon()
-        add_action = QAction(add_icon, "Add Issue", self)
-        add_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
-        toolbar.addAction(add_action)
+        add_entry_btn = QAction(add_icon, "Add Entry", self)
+        add_entry_btn.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
+        toolbar.addAction(add_entry_btn)
 
         update_icon = QIcon()
-        self.update_action = QAction(update_icon, "Update Issue", self)
-        self.update_action.setDisabled(True)
-        self.update_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
-        toolbar.addAction(self.update_action)
+        self.update_entry = QAction(update_icon, "Update Record", self)
+        self.update_entry.setDisabled(True)
+        self.update_entry.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
+        toolbar.addAction(self.update_entry)
 
         exit_icon = QIcon()
-        exit_action = QAction(exit_icon, "Exit", self)
-        exit_action.triggered.connect(self.close)
-        toolbar.addAction(exit_action)
+        exit_btn = QAction(exit_icon, "Exit", self)
+        exit_btn.triggered.connect(self.close)
+        toolbar.addAction(exit_btn)
 
     def create_status_bar(self):
         status_bar = QStatusBar()
@@ -98,8 +97,10 @@ class MainWindow(QMainWindow):
             progress_col_index = statics.table_headers.index("Progress")
             self.table.setItemDelegateForColumn(progress_col_index, progress_delegate)
 
-        self.table.rowSelected.connect(self.handleRowSelected)
         self.table.doubleClicked.connect(self.handleDoubleClick)
+        
+        # Connect the selectionChanged signal to a new slot
+        self.table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
 
         central_widget.setLayout(layout)
 
@@ -134,9 +135,11 @@ class MainWindow(QMainWindow):
 
         for doc_id in id_list:
             doc_data = issues.get(doc_id, {})
-            # Process due date and overdue logic (same as before)
+            # Retrieve due date from either "due_date" or fallback to "end_date"
             due_date_str = doc_data.get("due_date", doc_data.get("end_date", ""))
             if due_date_str:
+                # Save the due date string so that it appears in the table
+                doc_data["due_date"] = due_date_str
                 try:
                     due_date = datetime.datetime.strptime(due_date_str, "%Y-%m-%d").date()
                     if today > due_date:
@@ -216,16 +219,7 @@ class MainWindow(QMainWindow):
             # Refresh the table by reloading data
             statics.firebase_manager.checkCacheAndFetch()
             self.on_thread_finished()
-
         
-    def handleRowSelected(self, selected_row):
-        # If needed, you can use the selected_row data.
-        selected_index = self.table.selectionModel().currentIndex()
-        statics.row_selected = selected_index.row()
-        self.update_action.setDisabled(False)
-
-        print("Selected Row:", selected_row)
-        self.rowSelected.emit(selected_row)
 
     def show_issue_window(self, is_new_issue):
         """
@@ -234,26 +228,14 @@ class MainWindow(QMainWindow):
         self.new_issue_list_window = IssueWindow(is_new_issue)
         self.new_issue_list_window.show()
 
-    def on_thread_finished(self):
-        """
-        Once the fresh data has been fetched in the background,
-        update the table with the newly fetched data from memory.
-        """
-        data = self.convert_issues_to_data()
-        model = TableModel(data, statics.table_headers)
-        self.table.setModel(model)
-        self.table.resizeColumnsToContents()
-        self.statusBar().showMessage("Data loaded successfully from Firestore.")
-
     def closeEvent(self, event):
         if hasattr(self, 'fetch_thread') and self.fetch_thread.isRunning():
             self.fetch_thread.quit()
             self.fetch_thread.wait()
         super().closeEvent(event)
 
-
-    def refreshTable(self):
-        data = self.convert_issues_to_data()
-        model = TableModel(data, statics.table_headers)
-        self.table.setModel(model)
-        self.table.resizeColumnsToContents()
+    def on_table_selection_changed(self, selected, deselected):
+        if self.table.selectionModel().hasSelection():
+            self.update_entry.setEnabled(True)
+        else:
+            self.update_entry.setEnabled(False)

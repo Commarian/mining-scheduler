@@ -1,5 +1,7 @@
 from PyQt5 import QtWidgets, QtCore
 
+import statics
+
 
 
 class MyTableView(QtWidgets.QTableView):
@@ -18,9 +20,7 @@ class MyTableView(QtWidgets.QTableView):
         selection_model = self.selectionModel()
         selection_model.select(index.siblingAtColumn(0), QtCore.QItemSelectionModel.SelectionFlag.Select)
         selection_model.select(index.siblingAtColumn(1), QtCore.QItemSelectionModel.SelectionFlag.Select)
-
-        # Perform the desired action here, e.g., print the selected row data
-        selected_row = [self.model().data(index.siblingAtColumn(col), QtCore.Qt.ItemDataRole.DisplayRole) for col in
-                        range(self.model().columnCount(QtCore.QModelIndex()))]
-
+        statics.row_selected = index.row()
+        
+    
 
