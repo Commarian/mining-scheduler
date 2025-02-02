@@ -70,8 +70,6 @@ class MainWindow(QMainWindow):
         # Prepare Firebase calls
         self.firebase_manager = FirebaseManager()
 
-        # 1) Load immediate local data into the model
-        self.firebase_manager.load_local_cache()
         self.create_central_widget()
 
         # 2) Create a thread object as a member variable so it won't get destroyed
@@ -330,8 +328,6 @@ class MainWindow(QMainWindow):
         and then cache locally, ignoring any stale/fresh checks.
         """
         self.firebase_manager.set_issues()
-        self.firebase_manager.save_local_cache()
-
     def on_thread_finished(self):
         """
         Once the fresh data has been fetched in the background,

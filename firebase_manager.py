@@ -34,20 +34,7 @@ class FirebaseManager:
     # --------------------------------------------------
     #   Public Methods (Called from MainWindow, etc.)
     # --------------------------------------------------
-    def alwaysFetchAndCache(self):
-        """
-        1) Load local cache into memory (for immediate display).
-        2) Then fetch from Firestore, overwriting local data.
-        3) Save new data to local cache.
-        """
-        print("[FirebaseManager] Loading local cache first...")
-        self.load_local_cache()
 
-        print("[FirebaseManager] Now fetching from Firestore for newest data...")
-        self.set_issues()  # fetch from Firestore
-
-        print("[FirebaseManager] Saving fresh data to local cache...")
-        self.save_local_cache()
 
     def set_issues(self):
         """
@@ -70,7 +57,8 @@ class FirebaseManager:
 
             print("Fetched issues from Firestore. statics.issues_hash updated.")
         except Exception as e:
-            print(f"Error fetching issues from Firestore: {e}")
+            self.set_issues();
+            print(f"Error fetching issues from Firestore: {e}, retrying...")
 
     def save_data(self, collection_name, data, document=None):
         """
@@ -81,15 +69,10 @@ class FirebaseManager:
                 statics.firestoredb.collection(collection_name).document(document).set(data, merge=True)
             else:
                 statics.firestoredb.collection(collection_name).add(data)
-
             print(f"[FirebaseManager] Data saved to Firestore: {data}")
-
-            # Optionally, refetch so you always have updated data
-            self.set_issues()
-            self.save_local_cache()
-
         except Exception as e:
-            print(f"[FirebaseManager] Error saving data to Firestore: {e}")
+            self.save_data(collection_name, data, document)
+            print(f"[FirebaseManager] Error saving data to Firestore: {e}, retrying...")
 
 
     def get_data(self, collection_name: str, document_name: str) -> list:
@@ -118,61 +101,3 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error fetching document from Firestore: {e}")
             return []
-
-
-
-    def load_local_cache(self):
-        """
-        Load from local JSON file, populate `statics.issues_hash` and `statics.id_list`.
-        """
-        try:
-            with open(self.local_cache_file, 'r', encoding='utf-8') as f:
-                cache_data = json.load(f)
-                # Expecting a structure like:
-                # {
-                #    "id_list": [...],
-                #    "issues": { "doc_id": {...}, ... }
-                # }
-                statics.id_list = cache_data.get("id_list", [])
-                issues = cache_data.get("issues", {})
-
-                # Clear and re-populate issues_hash
-                statics.issues_hash.clear()
-                for doc_id, doc_data in issues.items():
-                    statics.issues_hash.__setitem__(doc_id, doc_data)
-
-            print("Loaded issues from local cache.")
-        except Exception as e:
-            print(f"Error loading local cache: {e}")
-            # If anything goes wrong, fallback to fetching from DB
-            self.set_issues()
-            self.save_local_cache()
-
-    def save_local_cache(self):
-        """
-        Save `statics.id_list` and `statics.issues_hash` to local JSON file.
-        """
-        try:
-            # Convert `statics.issues_hash` into a normal dict if it's a custom type
-            # If `issues_hash` is a normal dict, you can do it directly:
-            issues_dict = dict(statics.issues_hash)  # or use a loop if needed
-
-            cache_data = {
-                "id_list": statics.id_list,
-                "issues": issues_dict
-            }
-            with open(self.local_cache_file, 'w', encoding='utf-8') as f:
-                json.dump(cache_data, f)
-            print("Local cache saved to disk.")
-        except Exception as e:
-            print(f"Error saving local cache: {e}")
-
-    # --------------------------------------------------
-    #   Microsoft Auth Stubs (if needed)
-    # --------------------------------------------------
-    def get_microsoft_auth_token(self):
-        print("Getting Microsoft Auth Token... (stub)")
-
-    def verify_microsoft_token(self, token):
-        print("Verifying Microsoft token... (stub)")
-
