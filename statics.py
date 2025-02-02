@@ -1,16 +1,13 @@
 # statics.py
 import msal
 
-# Instantiate FirebaseManager and store it for use throughout the app.
-from firebase_manager import FirebaseManager
-firebase_manager = FirebaseManager()
-
 row_selected = None
 issues_hash = {}
 id_list = []
 public_client_app = None
 firestoredb = None
 logged_in_user = None
+init_loading_done = False
 
 # Configuration from your secure storage
 CLIENT_ID = 'ef8bb5e6-6b0a-45ef-a722-c4e391290f83'

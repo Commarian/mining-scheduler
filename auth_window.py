@@ -3,6 +3,7 @@ import re
 import bcrypt
 import win32api
 import statics
+from helpers.data_fetcher_thread import DataFetcherThread
 
 from PyQt5.QtWidgets import (
     QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, QApplication, 
@@ -236,4 +237,6 @@ class AuthWindow(QWidget):
     def start_loading_dialog(self):
         loading_dialog = LoadingDialog(self)
         loading_dialog.show()
-
+        self.fetcher_thread = DataFetcherThread()
+        self.fetcher_thread.finished_fetching.connect(loading_dialog.complete_loading)
+        self.fetcher_thread.start()

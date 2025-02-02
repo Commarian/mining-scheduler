@@ -4,6 +4,9 @@ from PyQt5.QtCore import Qt, QTimer
 from main_window import MainWindow
 import statics
 
+
+
+
 class LoadingDialog(QDialog):
     def __init__(self, parent=None):
         super(LoadingDialog, self).__init__(parent)
@@ -30,7 +33,7 @@ class LoadingDialog(QDialog):
         self.timer.setInterval(5)  # 5ms interval
         self.timer.timeout.connect(self.update_progress)
 
-        self.max_progress = 300  # progress bar maximum value (300ms)
+        self.max_progress = 700  # progress bar maximum value (300ms)
         self.progress_value = 0
         self.attempt_count = 0
         self.max_attempts = 10
@@ -38,15 +41,14 @@ class LoadingDialog(QDialog):
         self.timer.start()
 
     def update_progress(self):
-        # Increase progress by 5 units each tick (so full in 300ms)
-        self.progress_value += 5
+        self.progress_value += 1
         if self.progress_value > self.max_progress:
             self.progress_value = self.max_progress
         self.progress_bar.setValue(self.progress_value)
 
         # When the progress bar is full, check if data is ready.
         if self.progress_value >= self.max_progress:
-            if len(statics.issues_hash) > 0:
+            if statics.init_loading_done:
                 # Data is loaded: stop the timer and open the main window.
                 self.timer.stop()
                 self.open_main_window()
@@ -70,3 +72,6 @@ class LoadingDialog(QDialog):
         main_window = MainWindow()
         main_window.show()
         self.close()
+
+    def complete_loading(self):
+        statics.init_loading_done = True
