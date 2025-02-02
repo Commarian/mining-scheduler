@@ -9,10 +9,10 @@ from PyQt5.QtCore import Qt
 
 import statics
 
-from my_table_view import MyTableView # your custom QTableView subclass
-from table_model import TableModel
+from helpers.my_table_view import MyTableView # your custom QTableView subclass
+from helpers.table_model import TableModel
 from new_issue_list_window import IssueWindow
-from progress_delegate import ProgressBarDelegate
+from helpers.progress_delegate import ProgressBarDelegate
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -22,17 +22,7 @@ class MainWindow(QMainWindow):
         # ===========================
         #  Global Application Style
         # ===========================
-        self.setStyleSheet("""
-            QMainWindow { background-color: #f7f7f7; font-family: Arial; }
-            QToolBar { background-color: #ffffff; border: none; }
-            QToolButton { background-color: #4caf50; color: white; font-size: 14px;
-                         padding: 6px 12px; border-radius: 4px; margin: 4px; }
-            QToolButton:hover { background-color: #45a049; }
-            QTableView { background-color: #ffffff; gridline-color: #ccc; font-size: 13px;
-                        alternate-background-color: #f2f2f2; }
-            QHeaderView::section { background-color: #e0e0e0; padding: 4px; border: 1px solid #ccc; }
-            QStatusBar { background-color: #ffffff; }
-        """)
+        self.setStyleSheet(statics.app_stylesheet)
 
         # Initialize the main parts
         self.create_menu_bar()
@@ -118,7 +108,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------
     def fetchData(self):
         # Fetch fresh data from Firestore (no cache is used)
-        self.firebase_manager.set_issues()
+        statics.firebase_manager.set_issues()
 
     def convert_issues_to_data(self):
         data = []
@@ -204,7 +194,7 @@ class MainWindow(QMainWindow):
             current_progress = int(row_data[progress_index])
         except:
             current_progress = 0
-        from progress_dialog import ProgressDialog
+        from helpers.progress_dialog import ProgressDialog
         dlg = ProgressDialog(current_progress=current_progress, parent=self)
         if dlg.exec_():
             new_progress = dlg.get_progress()
@@ -222,9 +212,9 @@ class MainWindow(QMainWindow):
                 if new_progress < 100:
                     update_fields["Status"] = "Open"
                     update_fields["date_completed"] = ""
-            self.firebase_manager.save_data("issues", update_fields, document=doc_id)
+            statics.firebase_manager.save_data("issues", update_fields, document=doc_id)
             # Refresh the table by reloading data
-            self.firebase_manager.checkCacheAndFetch()
+            statics.firebase_manager.checkCacheAndFetch()
             self.on_thread_finished()
 
         
@@ -241,7 +231,7 @@ class MainWindow(QMainWindow):
         """
         Opens the IssueWindow (or whichever window you use) for adding/updating an issue.
         """
-        self.new_issue_list_window = IssueWindow(self.firebase_manager, is_new_issue)
+        self.new_issue_list_window = IssueWindow(is_new_issue)
         self.new_issue_list_window.show()
 
     def on_thread_finished(self):

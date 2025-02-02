@@ -66,17 +66,6 @@ def get_company_from_domain(user_principal):
         print(f"Error determining company from domain: {e}")
     return 'Unknown Company'
 
-def is_valid_account(username, company):
-    """
-    Check if the username is known for this company.
-    """
-    valid_users = COMPANY_USERS.get(company, [])
-    if username in valid_users:
-        statics.logged_in_user = username #FIXME need to get a real user name and surname - this is getting the email - not here
-        return True, "Authenticated successfully."
-    else:
-        return False, "Authentication failed."
-
 def verify_password(entered_password, stored_hash):
     """
     Compare entered password with stored bcrypt hash.
@@ -86,6 +75,20 @@ def verify_password(entered_password, stored_hash):
     except Exception as e:
         print(f"Error verifying password: {e}")
         return False
+
+def is_valid_account(username, company):
+    """
+    Check if the username is known for this company by retrieving
+    valid accounts from Firebase. For now, we'll fall back on the local
+    COMPANY_USERS mapping, but later you can replace this with a call to
+    statics.firebase_manager.get_data(...) or a similar method.
+    """
+    valid_users = COMPANY_USERS.get(company, [])
+    if username in valid_users:
+        statics.logged_in_user = username
+        return True, "Authenticated successfully."
+    else:
+        return False, "Authentication failed."
 
 class AuthWindow(QWidget):
     def __init__(self):
@@ -98,37 +101,7 @@ class AuthWindow(QWidget):
         company = get_company_from_domain(current_user)
         is_valid, reason = is_valid_account(current_user, company)
 
-        # Optional: Set an icon if you have one
-        # self.setWindowIcon(QIcon("path/to/icon.png"))
-
-        # Apply an overall stylesheet to the entire window
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #f7f7f7;
-                font-family: Arial;
-            }
-            QLineEdit {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                font-size: 14px;
-                padding: 6px;
-            }
-            QPushButton {
-                background-color: #4caf50;
-                color: white;
-                font-size: 14px;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QLabel {
-                font-size: 14px;
-                font-weight: normal;
-            }
-        """)
+        self.setStyleSheet(statics.app_stylesheet)
 
         if is_valid:
             # Proceed to the password window
@@ -216,7 +189,7 @@ class AuthWindow(QWidget):
 
         self.setLayout(main_layout)
 
-    def clear_saved_credentials(self):
+    def clear_saved_credentials(self, show_dialog = True):
         """
         Clears the saved org name/password from QSettings.
         """
@@ -229,7 +202,8 @@ class AuthWindow(QWidget):
         self.password_input.clear()
         self.remember_checkbox.setChecked(False)
 
-        QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
+        if (show_dialog):
+            QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
 
     def authenticate(self):
         """
@@ -246,9 +220,9 @@ class AuthWindow(QWidget):
                 self.settings.setValue("remember_me", True)
             else:
                 # Clear any old saved credentials
-                self.clear_saved_credentials()
+                self.clear_saved_credentials(False)
             self.close()
-            self.open_main_window()
+            self.start_loading_dialog()
         else:
             self.attempts += 1
             attempts_left = self.max_attempts - self.attempts
@@ -260,9 +234,6 @@ class AuthWindow(QWidget):
                 sys.exit(1)
 
     def start_loading_dialog(self):
-        """
-        Launch the main window upon success.
-        """
-        loading_dialog = LoadingDialog()
+        loading_dialog = LoadingDialog(self)
         loading_dialog.show()
 

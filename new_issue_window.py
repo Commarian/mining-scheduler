@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QFormLayout, \
     QStackedWidget
 
-from firebase_manager import FirebaseManager
+import statics
 
 
 class FieldSetupWidget(QWidget):
@@ -34,10 +34,9 @@ class FieldSetupWidget(QWidget):
 
 
 class NewIssueWindow(QWidget):
-    def __init__(self, firebase_manager):
+    def __init__(self):
         super().__init__()
 
-        self.firebase_manager = firebase_manager
         self.configurable_fields = []
 
         self.setup_ui()
@@ -97,6 +96,6 @@ class NewIssueWindow(QWidget):
                 issue_data[field["name"]] = widget.toPlainText()
 
         # Save job card data using FirebaseManager
-        self.firebase_manager.save_jobcard_data(issue_data)
+        statics.firebase_manager.save_jobcard_data(issue_data)
 
         # Optionally, emit a signal or perform other actions

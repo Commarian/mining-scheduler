@@ -1,6 +1,10 @@
 # statics.py
 import msal
 
+# Instantiate FirebaseManager and store it for use throughout the app.
+from firebase_manager import FirebaseManager
+firebase_manager = FirebaseManager()
+
 row_selected = None
 issues_hash = {}
 id_list = []
@@ -41,6 +45,39 @@ table_headers = [
     'Status'
 ]
 
-# Instantiate FirebaseManager and store it for use throughout the app.
-from firebase_manager import FirebaseManager
-firebase_manager = FirebaseManager()
+app_stylesheet = """
+            QWidget {
+                background-color: #f7f7f7;
+                font-family: Arial;
+            }
+            QLineEdit {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-size: 14px;
+                padding: 6px;
+            }
+            QPushButton {
+                background-color: #4caf50;
+                color: white;
+                font-size: 14px;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QLabel {
+                font-size: 14px;
+                font-weight: normal;
+            }
+            QMainWindow { background-color: #f7f7f7; font-family: Arial; }
+            QToolBar { background-color: #ffffff; border: none; }
+            QToolButton { background-color: #4caf50; color: white; font-size: 14px;
+                         padding: 6px 12px; border-radius: 4px; margin: 4px; }
+            QToolButton:hover { background-color: #45a049; }
+            QTableView { background-color: #ffffff; gridline-color: #ccc; font-size: 13px;
+                        alternate-background-color: #f2f2f2; }
+            QHeaderView::section { background-color: #e0e0e0; padding: 4px; border: 1px solid #ccc; }
+            QStatusBar { background-color: #ffffff; }
+        """
