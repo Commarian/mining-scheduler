@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, 
-    QToolBar, QAction, QStatusBar
+    QToolBar, QAction, QStatusBar, QProgressDialog
 )
 # main_window.py
 import datetime
@@ -9,57 +9,20 @@ from PyQt5.QtCore import Qt
 
 import statics
 
-from my_table_view import MyTableView # your custom QTableView subclass
-from table_model import TableModel
-from multi_thread import MultiThread
-from firebase_manager import FirebaseManager
+from helpers.my_table_view import MyTableView # your custom QTableView subclass
+from helpers.table_model import TableModel
 from new_issue_list_window import IssueWindow
-from progress_delegate import ProgressBarDelegate
+from helpers.progress_delegate import ProgressBarDelegate
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Issue Manager")
         self.setGeometry(100, 100, 1400, 800)
-
         # ===========================
         #  Global Application Style
         # ===========================
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f7f7f7;
-                font-family: Arial;
-            }
-            QToolBar {
-                background-color: #ffffff;
-                border: none;
-            }
-            QToolButton {
-                background-color: #4caf50;
-                color: white;
-                font-size: 14px;
-                padding: 6px 12px;
-                border-radius: 4px;
-                margin: 4px;
-            }
-            QToolButton:hover {
-                background-color: #45a049;
-            }
-            QTableView {
-                background-color: #ffffff;
-                gridline-color: #ccc;
-                font-size: 13px;
-                alternate-background-color: #f2f2f2;
-            }
-            QHeaderView::section {
-                background-color: #e0e0e0;
-                padding: 4px;
-                border: 1px solid #ccc;
-            }
-            QStatusBar {
-                background-color: #ffffff;
-            }
-        """)
+        self.setStyleSheet(statics.app_stylesheet)
 
         # Initialize the main parts
         self.create_menu_bar()
@@ -67,20 +30,7 @@ class MainWindow(QMainWindow):
         self.create_status_bar()
         self.create_central_widget()
 
-        # Prepare Firebase calls
-        self.firebase_manager = FirebaseManager()
 
-        self.create_central_widget()
-
-        # 2) Create a thread object as a member variable so it won't get destroyed
-        self.fetch_thread = MultiThread(self.fetch_andCacheIssues)
-        self.fetch_thread.finished_signal.connect(self.on_thread_finished)
-
-        # Optional: once the thread actually finishes, let Qt clean it up
-        self.fetch_thread.finished.connect(self.fetch_thread.deleteLater)
-
-        # 3) Start the thread
-        self.fetch_thread.start()
 
     # ---------------------------
     #   Window Close Handling
@@ -101,7 +51,6 @@ class MainWindow(QMainWindow):
     def create_menu_bar(self):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
-
         exit_action = QAction("Exit", self)
         exit_action.setShortcut(QKeySequence.Quit)
         exit_action.triggered.connect(self.close)
@@ -112,24 +61,21 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
-        # Add Issue action
         add_icon = QIcon()
-        add_action = QAction(add_icon, "Add Issue", self)
-        add_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
-        toolbar.addAction(add_action)
+        add_entry_btn = QAction(add_icon, "Add Entry", self)
+        add_entry_btn.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
+        toolbar.addAction(add_entry_btn)
 
-        # Update Issue action
         update_icon = QIcon()
-        self.update_action = QAction(update_icon, "Update Issue", self)
-        self.update_action.setDisabled(True)
-        self.update_action.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
-        toolbar.addAction(self.update_action)
+        self.update_entry = QAction(update_icon, "Update Record", self)
+        self.update_entry.setDisabled(True)
+        self.update_entry.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
+        toolbar.addAction(self.update_entry)
 
-        # Exit action
         exit_icon = QIcon()
-        exit_action = QAction(exit_icon, "Exit", self)
-        exit_action.triggered.connect(self.close)
-        toolbar.addAction(exit_action)
+        exit_btn = QAction(exit_icon, "Exit", self)
+        exit_btn.triggered.connect(self.close)
+        toolbar.addAction(exit_btn)
 
     def create_status_bar(self):
         status_bar = QStatusBar()
@@ -139,10 +85,9 @@ class MainWindow(QMainWindow):
     def create_central_widget(self):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
-
         layout = QVBoxLayout(central_widget)
-
-        model = TableModel([], statics.table_headers)
+        # Create the table model using the data that is already in statics
+        model = TableModel(self.convert_issues_to_data(), statics.table_headers)
         self.table = MyTableView(model)
         layout.addWidget(self.table)
 
@@ -152,41 +97,27 @@ class MainWindow(QMainWindow):
             progress_col_index = statics.table_headers.index("Progress")
             self.table.setItemDelegateForColumn(progress_col_index, progress_delegate)
 
-        self.table.rowSelected.connect(self.handleRowSelected)
         self.table.doubleClicked.connect(self.handleDoubleClick)
+        
+        # Connect the selectionChanged signal to a new slot
+        self.table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
 
         central_widget.setLayout(layout)
 
     # ------------------------------------------------
     #   Data / Firebase Threading
     # ------------------------------------------------
-    def fetch_andCacheIssues(self):
-        self.firebase_manager.set_issues()
-        self.firebase_manager.save_local_cache()
-
-    def on_thread_finished(self):
-        data = self.convert_issues_to_data()
-        model = TableModel(data, statics.table_headers)
-        self.table.setModel(model)
-        self.table.resizeColumnsToContents()
-        self.statusBar().showMessage("Data loaded successfully from Firestore.")
+    def fetchData(self):
+        # Fetch fresh data from Firestore (no cache is used)
+        statics.firebase_manager.set_issues()
 
     def convert_issues_to_data(self):
-        """
-        Convert the issues (from statics.issues_hash and statics.id_list)
-        into a 2D list for the table model. Also, check the due date against today,
-        update the "Overdue" flag, and ensure that "Progress" and "Date Completed" have defaults.
-        """
         data = []
         issues = statics.issues_hash
         id_list = statics.id_list
         today = datetime.date.today()
-
-        # Map the table headers (as defined in statics.table_headers) to your data keys.
-        # (If you have not yet updated your Firestore fields, you might need to
-        #  map 'Due Date' to the existing 'end_date' field.)
         field_mapping = {
-            'Due Date': 'due_date',  # if your DB is updated, otherwise use: 'end_date'
+            'Due Date': 'due_date',  # or fallback to 'end_date'
             'Originator': 'originator',
             'Start Date': 'start_date',
             'Hazard': 'hazard',
@@ -204,28 +135,23 @@ class MainWindow(QMainWindow):
 
         for doc_id in id_list:
             doc_data = issues.get(doc_id, {})
-
-            # Use the due date (if missing, fallback to 'end_date')
+            # Retrieve due date from either "due_date" or fallback to "end_date"
             due_date_str = doc_data.get("due_date", doc_data.get("end_date", ""))
             if due_date_str:
+                # Save the due date string so that it appears in the table
+                doc_data["due_date"] = due_date_str
                 try:
                     due_date = datetime.datetime.strptime(due_date_str, "%Y-%m-%d").date()
                     if today > due_date:
-                        if doc_data.get("Overdue", "No") != "Yes":
-                            doc_data["Overdue"] = "Yes"
-                            if not doc_data.get("Status"):
-                                doc_data["Status"] = "Open"
-                            self.firebase_manager.save_data(
-                                "issues",
-                                {"Overdue": "Yes", "Status": doc_data["Status"]},
-                                document=doc_id
-                            )
+                        doc_data["Overdue"] = "Yes"
+                        if not doc_data.get("Status"):
+                            doc_data["Status"] = "Open"
                     else:
                         doc_data["Overdue"] = "No"
                         if not doc_data.get("Status"):
                             doc_data["Status"] = "Open"
                 except Exception as e:
-                    print(f"Error processing due_date for document {doc_id}: {e}")
+                    print("Error processing due_date for document", doc_id, ":", e)
                     doc_data["Overdue"] = "No"
                     if not doc_data.get("Status"):
                         doc_data["Status"] = "Open"
@@ -234,42 +160,32 @@ class MainWindow(QMainWindow):
                 if not doc_data.get("Status"):
                     doc_data["Status"] = "Open"
 
-            # Set default progress (if not present, default to 0)
             if "progress" not in doc_data or not doc_data["progress"]:
                 doc_data["progress"] = "0"
-            # Default date_completed to empty if not set
             if "date_completed" not in doc_data:
                 doc_data["date_completed"] = ""
 
-            # Build the row using the header order
             row = []
             for header in statics.table_headers:
                 key = field_mapping.get(header)
                 row.append(doc_data.get(key, ""))
             data.append(row)
-
         return data
 
 
     def handleDoubleClick(self, index):
-        # Get the row data from the model
+        # Here, determine if you want to open the progress dialog or the issue editor.
         row_data = self.table.model()._data[index.row()]
         headers = statics.table_headers
         status_index = headers.index("Status")
         responsible_index = headers.index("Person Responsible")
-        progress_index = headers.index("Progress")
-        
         status = row_data[status_index]
         responsible = row_data[responsible_index]
-        
-        # Case 1: Issue is open and the logged-in user is the assigned person.
         if status == "Open" and responsible == statics.logged_in_user:
             self.open_progress_dialog(index, is_reopening=False)
-        # Case 2: Issue is closed and (if implemented) the logged-in user has an approver role.
         elif status == "Closed" and getattr(statics, "logged_in_user_role", "") == "approver":
             self.open_progress_dialog(index, is_reopening=True)
         else:
-            # Otherwise, open the issue edit/details window as before.
             statics.row_selected = index.row()
             self.show_issue_window(is_new_issue=False)
 
@@ -281,7 +197,7 @@ class MainWindow(QMainWindow):
             current_progress = int(row_data[progress_index])
         except:
             current_progress = 0
-        from progress_dialog import ProgressDialog
+        from helpers.progress_dialog import ProgressDialog
         dlg = ProgressDialog(current_progress=current_progress, parent=self)
         if dlg.exec_():
             new_progress = dlg.get_progress()
@@ -299,42 +215,27 @@ class MainWindow(QMainWindow):
                 if new_progress < 100:
                     update_fields["Status"] = "Open"
                     update_fields["date_completed"] = ""
-            self.firebase_manager.save_data("issues", update_fields, document=doc_id)
+            statics.firebase_manager.save_data("issues", update_fields, document=doc_id)
             # Refresh the table by reloading data
-            self.firebase_manager.checkCacheAndFetch()
+            statics.firebase_manager.checkCacheAndFetch()
             self.on_thread_finished()
-
         
-    def handleRowSelected(self, selected_row):
-        # If needed, you can use the selected_row data.
-        selected_index = self.table.selectionModel().currentIndex()
-        statics.row_selected = selected_index.row()
-        self.update_action.setDisabled(False)
-
-        print("Selected Row:", selected_row)
-        self.rowSelected.emit(selected_row)
 
     def show_issue_window(self, is_new_issue):
         """
         Opens the IssueWindow (or whichever window you use) for adding/updating an issue.
         """
-        self.new_issue_list_window = IssueWindow(self.firebase_manager, is_new_issue)
+        self.new_issue_list_window = IssueWindow(is_new_issue)
         self.new_issue_list_window.show()
 
+    def closeEvent(self, event):
+        if hasattr(self, 'fetch_thread') and self.fetch_thread.isRunning():
+            self.fetch_thread.quit()
+            self.fetch_thread.wait()
+        super().closeEvent(event)
 
-    def fetch_andCacheIssues(self):
-        """
-        The method to run in a background thread: always fetch from Firestore
-        and then cache locally, ignoring any stale/fresh checks.
-        """
-        self.firebase_manager.set_issues()
-    def on_thread_finished(self):
-        """
-        Once the fresh data has been fetched in the background,
-        update the table with the newly fetched data from memory.
-        """
-        data = self.convert_issues_to_data()
-        model = TableModel(data, statics.table_headers)
-        self.table.setModel(model)
-        self.table.resizeColumnsToContents()
-        self.statusBar().showMessage("Data loaded successfully from Firestore.")
+    def on_table_selection_changed(self, selected, deselected):
+        if self.table.selectionModel().hasSelection():
+            self.update_entry.setEnabled(True)
+        else:
+            self.update_entry.setEnabled(False)

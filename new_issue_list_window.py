@@ -1,21 +1,18 @@
 from PyQt5.QtGui import QRegularExpressionValidator
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QTextEdit, QDateEdit, \
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QTextEdit, \
     QCalendarWidget, QHBoxLayout, QFormLayout
-from PyQt5.QtCore import QDate, QDateTime, QTime, QRegularExpression, Qt
+from PyQt5.QtCore import QDate, QDateTime, QRegularExpression, Qt
 
-import custom_q_pushbutton
-import firebase_manager
-import main_window
-import meth
+import helpers.custom_q_pushbutton as custom_q_pushbutton
+import helpers.meth as meth
 import statics
 
 
 class IssueWindow(QWidget):
-    def __init__(self, firebase_man, is_new_issue):
+    def __init__(self, is_new_issue):
         super().__init__()
         self.days = 0
         self.remaining_hours = 0
-        self.firebase_manager = firebase_man
         self.setup_ui(is_new_issue)
 
     def setup_ui(self, is_new_issue):
@@ -32,9 +29,9 @@ class IssueWindow(QWidget):
         if is_new_issue:
             priority_items = ["Critical", "Urgent", "High (A)", "Medium (B)", "Low (C)"]
             # Directly fetch the list from Firestore (already a list).
-            people_items = self.firebase_manager.get_data("company_data", "people")
-            locations_items = self.firebase_manager.get_data("company_data", "locations")
-            issue_sources_items = self.firebase_manager.get_data("company_data", "issue_sources")
+            people_items = statics.firebase_manager.get_data("company_data", "people")
+            locations_items = statics.firebase_manager.get_data("company_data", "locations")
+            issue_sources_items = statics.firebase_manager.get_data("company_data", "issue_sources")
         else:
             if len(statics.id_list) > 0 and statics.row_selected is not None:
                 selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
@@ -181,13 +178,13 @@ class IssueWindow(QWidget):
             hazard=self.hazard_entry.toPlainText(),
             rectification=self.rectification_entry.toPlainText())
 
-        self.firebase_manager.save_data("issues", data_dict)
+        statics.firebase_manager.save_data("issues", data_dict)
 
     def update_issue(self):
         data_dict = dict(
             comment=self.comment_entry.toPlainText()
         )
-        self.firebase_manager.save_data("issues", data_dict)
+        statics.firebase_manager.save_data("issues", data_dict)
 
     def update_end_date(self, location):
         start_date = self.start_date_picker.selectedDate()
