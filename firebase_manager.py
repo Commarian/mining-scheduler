@@ -1,7 +1,7 @@
 # firebase_manager.py
 
 import os
-
+import bcrypt
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -94,3 +94,28 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error fetching document from Firestore: {e}")
             return []
+        
+    def get_organization_by_domain(self, domain):
+        """
+        Query the 'organizations' collection for an org document that
+        has a matching domain in its 'domains' array.
+        """
+        try:
+            doc_ref = statics.firestoredb.collection('organizations').document(domain)
+            doc_snapshot = doc_ref.get()  # Fetch the document snapshot
+            if doc_snapshot.exists:
+                return doc_snapshot.to_dict()
+            else:
+                print(f"No organization found for domain: {domain}")
+                return None
+        except Exception as e:
+            print(f"Error fetching organization: {e}")
+        return None
+    
+    def verify_org_password(self, entered_password, stored_hash):
+        try:
+            return bcrypt.checkpw(entered_password.encode('utf-8'), stored_hash.encode('utf-8'))
+        except Exception as e:
+            print(f"Error verifying organization password: {e}")
+            return False
+        

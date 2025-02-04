@@ -6,66 +6,23 @@ import statics
 from helpers.data_fetcher_thread import DataFetcherThread
 
 from PyQt5.QtWidgets import (
-    QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, QApplication, 
+    QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, 
     QMessageBox, QCheckBox, QHBoxLayout, QGroupBox, QFormLayout, QSpacerItem, 
     QSizePolicy
 )
 from PyQt5.QtCore import Qt, QSettings
-from PyQt5.QtGui import QFont, QIcon
 
 from loading_dialog import LoadingDialog
 
-# ================================
-# Configuration and Setup
-# ================================
-
-DOMAIN_COMPANY_MAP = {
-    'SPRINGBOK': 'Springbok',
-    'UKWAZI': 'Ukwazi',
-    # ...
-}
-
-COMPANY_PASSWORD_HASHES = {
-    'Springbok': b'$2a$12$FoGRJPWadBxw0Rek.SpyQ.WBirXrHLHZNSzTWbKzjmK0I0S7MzyJq',
-    'Ukwazi':    b'$2a$12$FoGRJPWadBxw0Rek.SpyQ.WBirXrHLHZNSzTWbKzjmK0I0S7MzyJq',
-    # ...
-}
-
-COMPANY_USERS = {
-    'Springbok': ["anyUser@springbok.com", "drikus@ukwazi.com"],
-    'Ukwazi': ["commarian1@gmail.com"],
-    # ...
-}
-
 def get_current_user():
-    """
-    Retrieve the current logged-in user's username.
-    Example: returns something like 'drikus@ukwazi.com'
-    (For demonstration, returning a fixed user.)
-    """
     try:
         NAME_USER_PRINCIPAL = 8  
         user_principal = win32api.GetUserNameEx(NAME_USER_PRINCIPAL)
         print(f"User Principal: {user_principal}")
     except Exception:
+        print(f"User Principal exception")
         user_principal = "Unknown"
-    # For testing, override:
-    user_principal = "anyUser@springbok.com"
     return user_principal
-
-def get_company_from_domain(user_principal):
-    """
-    Determine the company from the user principal's domain.
-    """
-    try:
-        domain_match = re.search(r'@([\w.-]+)', user_principal)
-        if domain_match:
-            domain_full = domain_match.group(1).upper()
-            primary_domain = domain_full.split('.')[0]
-            return DOMAIN_COMPANY_MAP.get(primary_domain, 'Unknown Company')
-    except Exception as e:
-        print(f"Error determining company from domain: {e}")
-    return 'Unknown Company'
 
 def verify_password(entered_password, stored_hash):
     """
@@ -77,59 +34,25 @@ def verify_password(entered_password, stored_hash):
         print(f"Error verifying password: {e}")
         return False
 
-def is_valid_account(username, company):
-    """
-    Check if the username is known for this company by retrieving
-    valid accounts from Firebase. For now, we'll fall back on the local
-    COMPANY_USERS mapping, but later you can replace this with a call to
-    statics.firebase_manager.get_data(...) or a similar method.
-    """
-    valid_users = COMPANY_USERS.get(company, [])
-    if username in valid_users:
-        statics.logged_in_user = username
-        return True, "Authenticated successfully."
-    else:
-        return False, "Authentication failed."
-
 class AuthWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.settings = QSettings("MyCompany", "MyApp")  # For "Remember Me" data
+        self.settings = QSettings("Springbok", "SpringbokApp")  # For "Remember Me" data
         self.init_ui()
 
     def init_ui(self):
-        current_user = get_current_user()
-        company = get_company_from_domain(current_user)
-        is_valid, reason = is_valid_account(current_user, company)
-
+        statics.collected_account = get_current_user()
+        self.password_window()
         self.setStyleSheet(statics.app_stylesheet)
 
-        if is_valid:
-            # Proceed to the password window
-            self.password_window(company)
-        else:
-            # Access Denied
-            layout = QVBoxLayout()
-            self.label = QLabel(f"Access Denied for {current_user}.\nReason: {reason}")
-            self.label.setStyleSheet("font-size: 16px; color: red;")
-            self.label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(self.label)
-            self.setLayout(layout)
-            self.setWindowTitle("Login Failed")
-            self.resize(400, 200)
-
-    def password_window(self, company_name):
+    def password_window(self):
         """
         Build the password window with a 'Remember Me' feature.
         """
-        self.password_hash = COMPANY_PASSWORD_HASHES.get(company_name)
         self.attempts = 0
-        self.max_attempts = 3
-        if not self.password_hash:
-            QMessageBox.critical(self, 'Error', f'No password configured for {company_name}.')
-            sys.exit(1)
+        self.max_attempts = 5
 
-        self.setWindowTitle('Additional Authentication')
+        self.setWindowTitle('Authentication')
         self.setFixedSize(400, 250)
 
         main_layout = QVBoxLayout()
@@ -140,6 +63,7 @@ class AuthWindow(QWidget):
 
         # Organization Input
         self.organization_input = QLineEdit()
+        self.organization_input.setPlaceholderText('Enter Organization Name')
         self.organization_input.setFixedHeight(30)
 
         # Attempt to load saved org and password from QSettings
@@ -148,13 +72,13 @@ class AuthWindow(QWidget):
         remember_me_checked = self.settings.value("remember_me", False, type=bool)
 
         # Fill them in if they exist
-        self.organization_input.setText(saved_org if saved_org else company_name)
+        self.organization_input.setText(saved_org)
 
         form_layout.addRow(QLabel("Organization:"), self.organization_input)
 
         # Password Input
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText('Enter Company Password')
+        self.password_input.setPlaceholderText('Enter Organization Password')
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setFixedHeight(30)
 
@@ -191,9 +115,6 @@ class AuthWindow(QWidget):
         self.setLayout(main_layout)
 
     def clear_saved_credentials(self, show_dialog = True):
-        """
-        Clears the saved org name/password from QSettings.
-        """
         self.settings.remove("org_name")
         self.settings.remove("org_password")
         self.settings.remove("remember_me")
@@ -207,33 +128,28 @@ class AuthWindow(QWidget):
             QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
 
     def authenticate(self):
-        """
-        Check password correctness. If valid, open main window.
-        """
-        entered_password = self.password_input.text()
-        company_name = self.organization_input.text().strip()
+        entered_password = self.password_input.text().strip()
+        entered_org = self.organization_input.text().strip()
+        # Retrieve organization data from Firebase:
+        org_data = statics.firebase_manager.get_organization_by_domain(entered_org)
+        if org_data is None:
+            QMessageBox.critical(self, "Error", "Please double-check your orginization's name.")
+            return
 
-        if verify_password(entered_password, self.password_hash):
-            # If "Remember Me" is checked, save to QSettings
-            if self.remember_checkbox.isChecked():
-                self.settings.setValue("org_name", company_name)
-                self.settings.setValue("org_password", entered_password)
-                self.settings.setValue("remember_me", True)
-            else:
-                # Clear any old saved credentials
-                self.clear_saved_credentials(False)
+        # Verify the password against the stored hash.
+        stored_hash = org_data.get("passwordHash", "")
+        if statics.firebase_manager.verify_org_password(entered_password, stored_hash):
+            authorized_users = org_data.get("authorizedUsers", [])
+            if statics.collected_account.lower() not in [u.lower() for u in authorized_users]:
+                QMessageBox.critical(self, "Error", "Your user account is not authorized for this organization.")
+                return
+
+            statics.logged_in_org = org_data
             self.close()
             self.start_loading_dialog()
         else:
-            self.attempts += 1
-            attempts_left = self.max_attempts - self.attempts
-            if attempts_left > 0:
-                QMessageBox.warning(self, 'Error', f'Invalid Password. Attempts left: {attempts_left}')
-                self.password_input.clear()
-            else:
-                QMessageBox.critical(self, 'Error', 'Maximum attempts reached. Exiting application.')
-                sys.exit(1)
-
+            QMessageBox.warning(self, "Error", "Invalid organization password.")
+            
     def start_loading_dialog(self):
         loading_dialog = LoadingDialog(self)
         loading_dialog.show()
