@@ -167,7 +167,7 @@ class IssueWindow(QWidget):
         if len(items) > 0:
             dropdown.addItems(items)
         else:
-            QMessageBox.critical(self, "Error", "This issue is not valid. Please close it and create a new one.")
+            QMessageBox.critical(self, "Error", "This record is not valid. Please close it and create a new one.")
             self.close()
         # This means that we can safely assume it is not editable since only one exists.
         #TODO this must become a label when this is true, can't disable a combobox sadly
