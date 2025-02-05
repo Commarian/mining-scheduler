@@ -1,5 +1,5 @@
 from PyQt5.QtGui import QRegularExpressionValidator
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QComboBox, QTextEdit, \
+from PyQt5.QtWidgets import QWidget, QMessageBox, QVBoxLayout, QLabel, QLineEdit, QComboBox, QTextEdit, \
     QCalendarWidget, QHBoxLayout, QFormLayout
 from PyQt5.QtCore import QDate, QDateTime, QRegularExpression, Qt
 
@@ -13,9 +13,10 @@ class IssueWindow(QWidget):
         super().__init__()
         self.days = 0
         self.remaining_hours = 0
-        self.setup_ui(is_new_issue)
+        self.is_new_issue = is_new_issue
+        self.setup_ui()
 
-    def setup_ui(self, is_new_issue):
+    def setup_ui(self):
 
         self.setWindowTitle("Add Issue")
         self.setGeometry(100, 100, 900, 800)
@@ -26,7 +27,7 @@ class IssueWindow(QWidget):
         locations_items = []
         priority_items = []
         update_end_date = QDate.currentDate()
-        if is_new_issue:
+        if self.is_new_issue:
             priority_items = ["Critical", "Urgent", "High (A)", "Medium (B)", "Low (C)"]
             # Directly fetch the list from Firestore (already a list).
             people_items = statics.firebase_manager.get_data("company_data", "people")
@@ -34,8 +35,15 @@ class IssueWindow(QWidget):
             issue_sources_items = statics.firebase_manager.get_data("company_data", "issue_sources")
         else:
             if len(statics.id_list) > 0 and statics.row_selected is not None:
+                self.readOnly = False
                 selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
-                people_items.append(selected_row.get("person_responsible"))
+                self.person_responsible = selected_row.get("person_responsible")
+                if (self.person_responsible is not None and self.person_responsible != statics.username):
+                    self.readOnly = True
+
+                if (self.readOnly):
+                    people_items.append(self.person_responsible)
+                    #TODO continue with readOnly vs edit logic
                 issue_sources_items.append(selected_row.get("source"))
                 locations_items.append(selected_row.get("location"))
                 end_date = selected_row.get("end_date")
@@ -50,22 +58,22 @@ class IssueWindow(QWidget):
         # Widgets
         self.person_responsible_label = QLabel("Person Responsible:")
         self.person_responsible_dropdown = QComboBox()
-        self.populate_dropdown(self.person_responsible_dropdown, people_items, is_new_issue)
+        self.populate_dropdown(self.person_responsible_dropdown, people_items)
 
         self.hazard_label = QLabel("Hazard:")
         self.hazard_entry = QTextEdit()
 
         self.hazard_classification_label = QLabel("Hazard Classification:")
         self.hazard_classification_dropdown = QComboBox()
-        self.populate_dropdown(self.hazard_classification_dropdown, ["Class A - LTI", "Class B - MTC", "Class C - FAC"], is_new_issue)
+        self.populate_dropdown(self.hazard_classification_dropdown, ["Class A - LTI", "Class B - MTC", "Class C - FAC"])
 
         self.priority_label = QLabel("Priority:")
         self.priority_dropdown = QComboBox()
-        self.populate_dropdown(self.priority_dropdown, priority_items, is_new_issue)
+        self.populate_dropdown(self.priority_dropdown, priority_items)
 
         self.source_label = QLabel("Source:")
         self.source_dropdown = QComboBox()
-        self.populate_dropdown(self.source_dropdown, issue_sources_items, is_new_issue)
+        self.populate_dropdown(self.source_dropdown, issue_sources_items)
 
         self.start_date_label = QLabel("Start Date:")
         self.start_date_picker = QCalendarWidget()
@@ -82,13 +90,13 @@ class IssueWindow(QWidget):
         self.end_date_label = QLabel("End Date:")
         self.end_date_picker = QCalendarWidget()
         self.end_date_picker.setMinimumDate(QDate.currentDate())
-        if not is_new_issue:
+        if not self.is_new_issue:
             self.end_date_picker.setMinimumDate(update_end_date)
             self.end_date_picker.setSelectedDate(update_end_date)
             
         self.location_label = QLabel("Location:")
         self.location_dropdown = QComboBox()
-        self.populate_dropdown(self.location_dropdown, locations_items, is_new_issue)
+        self.populate_dropdown(self.location_dropdown, locations_items)
 
         self.rectification_label = QLabel("Rectification:")
         self.rectification_entry = QTextEdit()
@@ -114,20 +122,20 @@ class IssueWindow(QWidget):
         form_layout.addRow(self.person_responsible_label, self.person_responsible_dropdown)
         form_layout.addRow(self.location_label, self.location_dropdown)
 
-        if is_new_issue:
+        if self.is_new_issue:
             form_layout.addRow(self.hazard_label, self.hazard_entry)
             form_layout.addRow(self.hazard_classification_label, self.hazard_classification_dropdown)
         form_layout.addRow(self.priority_label, self.priority_dropdown)
-        if is_new_issue:
+        if self.is_new_issue:
             form_layout.addRow(self.source_label, self.source_dropdown)
             form_layout.addRow(self.start_date_label, self.start_date_picker)
             form_layout.addRow(self.duration_days_label, duration_row_layout)
 
         form_layout.addRow(self.end_date_label, self.end_date_picker)
-        if is_new_issue:
+        if self.is_new_issue:
             form_layout.addRow(self.rectification_label, self.rectification_entry)
 
-        if not is_new_issue:
+        if not self.is_new_issue:
             save_button.setText("Update")
             form_layout.addRow(self.comment_label, self.comment_entry)
             self.setWindowTitle("Update Issue")
@@ -138,7 +146,7 @@ class IssueWindow(QWidget):
         self.setLayout(v_layout)
 
         # Connect signals
-        if is_new_issue:
+        if self.is_new_issue:
             self.start_date_picker.clicked.connect(lambda: self.update_end_date("from_start"))
             self.end_date_picker.clicked.connect(lambda: self.update_duration("from_end"))
             self.duration_days_text.textEdited.connect(lambda: self.update_end_date("from_duration_days"))
@@ -150,16 +158,24 @@ class IssueWindow(QWidget):
 
         cancel_button.clicked.connect(self.close)
 
-        # this ensures that no other window can receive/process input when this window is alive
+        # This ensures that no other window can receive/process input when this window is alive
         self.setWindowModality(Qt.ApplicationModal)
 
-    def populate_dropdown(self, dropdown, items, add_blank=True):
-        if add_blank:
+    def populate_dropdown(self, dropdown, items):
+        if self.is_new_issue:
             dropdown.addItem("")
         if len(items) > 0:
             dropdown.addItems(items)
         else:
+            QMessageBox.critical(self, "Error", "This issue is not valid. Please close it and create a new one.")
             self.close()
+        # This means that we can safely assume it is not editable since only one exists.
+        #TODO this must become a label when this is true, can't disable a combobox sadly
+        if len(items) == 1:
+            dropdown.setEditable(False)
+        else:
+            dropdown.setEditable(True)
+
 
     def setup_validator(self, line_edit, regex):
         validator = QRegularExpressionValidator(QRegularExpression(regex))

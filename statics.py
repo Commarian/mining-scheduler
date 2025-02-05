@@ -8,7 +8,9 @@ public_client_app = None
 firestoredb = None
 logged_in_org = None
 init_loading_done = False
-collected_account = None
+#Accounts
+collected_account = ''
+username = ''
 
 # Configuration from your secure storage
 CLIENT_ID = 'ef8bb5e6-6b0a-45ef-a722-c4e391290f83'

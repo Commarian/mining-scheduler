@@ -12,7 +12,7 @@ def gather_python_files(root="."):
             if fname.endswith(".py"):
                 full_path = os.path.abspath(os.path.join(dirpath, fname))
                 # Skip this script itself if you don't want it included
-                if full_path != this_script:
+                if full_path.lower() != this_script.lower():
                     py_files.append(full_path)
     return py_files
 

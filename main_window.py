@@ -222,9 +222,6 @@ class MainWindow(QMainWindow):
         
 
     def show_issue_window(self, is_new_issue):
-        """
-        Opens the IssueWindow (or whichever window you use) for adding/updating an issue.
-        """
         self.new_issue_list_window = IssueWindow(is_new_issue)
         self.new_issue_list_window.show()
 

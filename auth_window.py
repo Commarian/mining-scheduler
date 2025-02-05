@@ -41,9 +41,9 @@ class AuthWindow(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        statics.collected_account = get_current_user()
-        self.password_window()
+        statics.collected_account = get_current_user().lower()
         self.setStyleSheet(statics.app_stylesheet)
+        self.password_window()
 
     def password_window(self):
         """
@@ -145,10 +145,12 @@ class AuthWindow(QWidget):
                 return
 
             statics.logged_in_org = org_data
+            self.create_username()
+            self.save_credentials(entered_org, entered_password)
             self.close()
             self.start_loading_dialog()
         else:
-            QMessageBox.warning(self, "Error", "Invalid organization password.")
+            QMessageBox.warning(self, "Error", "Incorrect password.")
             
     def start_loading_dialog(self):
         loading_dialog = LoadingDialog(self)
@@ -156,3 +158,18 @@ class AuthWindow(QWidget):
         self.fetcher_thread = DataFetcherThread()
         self.fetcher_thread.finished_fetching.connect(loading_dialog.complete_loading)
         self.fetcher_thread.start()
+
+    def save_credentials(self, entered_org, entered_password):
+        if self.remember_checkbox.isChecked():
+            self.settings.setValue("org_name", entered_org)
+            self.settings.setValue("org_password", entered_password)
+            self.settings.setValue("remember_me", True)
+        else:
+            self.clear_saved_credentials(False)
+
+    def create_username(self):
+        #Fine vir domain stripping, maar om die actual user Naam + Van te kry moet jy win32 gebruik. 
+        #TODO
+        current_domains = statics.logged_in_org.get("domains", [])
+        #TODO KAK CODE REMOVE
+        statics.username = statics.collected_account.removesuffix("@ukwazi.com").lower()
