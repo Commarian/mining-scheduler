@@ -13,59 +13,66 @@ class IssueWindow(QWidget):
         super().__init__()
         self.days = 0
         self.remaining_hours = 0
-        self.is_new_issue = is_new_issue
+        if (is_new_issue):
+            self.access_level = 3
+        else:
+            self.access_level = 0
+        
         self.setup_ui()
 
     def setup_ui(self):
-
-        self.setWindowTitle("Add Issue")
-        self.setGeometry(100, 100, 900, 800)
+        self.setWindowTitle("Add Record")
+        self.setGeometry(50, 50, 1000, 800)
 
         # Populate dropdown items
-        people_items = []
+        assignee_items = []
         issue_sources_items = []
         locations_items = []
         priority_items = []
         update_end_date = QDate.currentDate()
-        if self.is_new_issue:
+
+        # Originator or adding a new record
+        if self.access_level > 2:
             priority_items = ["Critical", "Urgent", "High (A)", "Medium (B)", "Low (C)"]
-            # Directly fetch the list from Firestore (already a list).
-            people_items = statics.firebase_manager.get_data("company_data", "people")
             locations_items = statics.firebase_manager.get_data("company_data", "locations")
             issue_sources_items = statics.firebase_manager.get_data("company_data", "issue_sources")
+            hazard_classification_items = ["Class A - LTI", "Class B - MTC", "Class C - FAC"]
+
+        elif len(statics.id_list) > 0 and statics.row_selected is not None:
+            self.set_access_level()
+            #TODO add more logical handling for these items and their population based on access_level
+            #Note that these get methods use STATICS field_mapping
+            selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
+            self.assignee = selected_row.get("assignee")
+            self.originator = selected_row.get("originator")
+            self.approver = selected_row.get("approver")
+                
+            assignee_items.append(self.assignee)
+            issue_sources_items.append(selected_row.get("source"))
+            locations_items.append(selected_row.get("location"))
+            end_date = selected_row.get("end_date")
+            update_end_date = QDate.fromString(end_date, 'yyyy-MM-dd')
+            priority_items.append(selected_row.get("priority"))
+            hazard_classification_items.append(selected_row.get("hazard_classification"))
         else:
-            if len(statics.id_list) > 0 and statics.row_selected is not None:
-                self.readOnly = False
-                selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
-                self.person_responsible = selected_row.get("person_responsible")
-                if (self.person_responsible is not None and self.person_responsible != statics.username):
-                    self.readOnly = True
-
-                if (self.readOnly):
-                    people_items.append(self.person_responsible)
-                    #TODO continue with readOnly vs edit logic
-                issue_sources_items.append(selected_row.get("source"))
-                locations_items.append(selected_row.get("location"))
-                end_date = selected_row.get("end_date")
-                update_end_date = QDate.fromString(end_date, 'yyyy-MM-dd')
-                priority_items.append(selected_row.get("priority"))
-            else:
-                print("sum ting wong")
-                print('self.close()')
-                #TODO give error feedback of course
-
+            QMessageBox.critical(self, "Error", "Something went wrong with the current record selection. Please try again.")
+            self.close()
+        
+        # LOGIC : Approver might be able to change the assignee
+        if (self.access_level > 1):
+            assignee_items = statics.firebase_manager.get_data("company_data", "people")
 
         # Widgets
-        self.person_responsible_label = QLabel("Person Responsible:")
-        self.person_responsible_dropdown = QComboBox()
-        self.populate_dropdown(self.person_responsible_dropdown, people_items)
+        self.assignee_label = QLabel("Assignee:")
+        self.assignee_dropdown = QComboBox()
+        self.populate_dropdown(self.assignee_dropdown, assignee_items)
 
         self.hazard_label = QLabel("Hazard:")
         self.hazard_entry = QTextEdit()
 
         self.hazard_classification_label = QLabel("Hazard Classification:")
         self.hazard_classification_dropdown = QComboBox()
-        self.populate_dropdown(self.hazard_classification_dropdown, ["Class A - LTI", "Class B - MTC", "Class C - FAC"])
+        self.populate_dropdown(self.hazard_classification_dropdown, hazard_classification_items)
 
         self.priority_label = QLabel("Priority:")
         self.priority_dropdown = QComboBox()
@@ -87,10 +94,10 @@ class IssueWindow(QWidget):
         self.duration_hours_text = QLineEdit()
         self.setup_validator(self.duration_hours_text, r"^(?:[0-1]?[0-9]|2[0-3])$")
 
-        self.end_date_label = QLabel("End Date:")
+        self.end_date_label = QLabel("Due Date:")
         self.end_date_picker = QCalendarWidget()
         self.end_date_picker.setMinimumDate(QDate.currentDate())
-        if not self.is_new_issue:
+        if not self.access_level > 2:
             self.end_date_picker.setMinimumDate(update_end_date)
             self.end_date_picker.setSelectedDate(update_end_date)
             
@@ -119,26 +126,31 @@ class IssueWindow(QWidget):
         duration_row_layout.addWidget(self.duration_hours_label)
         duration_row_layout.addWidget(self.duration_hours_text)
 
-        form_layout.addRow(self.person_responsible_label, self.person_responsible_dropdown)
+        form_layout.addRow(self.assignee_label, self.assignee_dropdown)
         form_layout.addRow(self.location_label, self.location_dropdown)
 
-        if self.is_new_issue:
+        if self.access_level > 2:
             form_layout.addRow(self.hazard_label, self.hazard_entry)
             form_layout.addRow(self.hazard_classification_label, self.hazard_classification_dropdown)
+
         form_layout.addRow(self.priority_label, self.priority_dropdown)
-        if self.is_new_issue:
+
+        if self.access_level > 2:
             form_layout.addRow(self.source_label, self.source_dropdown)
             form_layout.addRow(self.start_date_label, self.start_date_picker)
             form_layout.addRow(self.duration_days_label, duration_row_layout)
 
         form_layout.addRow(self.end_date_label, self.end_date_picker)
-        if self.is_new_issue:
+
+        if (self.access_level < 2):
+            self.end_date_picker.setDisabled(True)
+        if self.access_level > 2:
             form_layout.addRow(self.rectification_label, self.rectification_entry)
 
-        if not self.is_new_issue:
+        if not self.access_level > 2:
             save_button.setText("Update")
             form_layout.addRow(self.comment_label, self.comment_entry)
-            self.setWindowTitle("Update Issue")
+            self.setWindowTitle("Update Record")
 
         v_layout.addLayout(form_layout)
         v_layout.addWidget(save_button)
@@ -146,7 +158,7 @@ class IssueWindow(QWidget):
         self.setLayout(v_layout)
 
         # Connect signals
-        if self.is_new_issue:
+        if self.access_level > 2:
             self.start_date_picker.clicked.connect(lambda: self.update_end_date("from_start"))
             self.end_date_picker.clicked.connect(lambda: self.update_duration("from_end"))
             self.duration_days_text.textEdited.connect(lambda: self.update_end_date("from_duration_days"))
@@ -162,7 +174,7 @@ class IssueWindow(QWidget):
         self.setWindowModality(Qt.ApplicationModal)
 
     def populate_dropdown(self, dropdown, items):
-        if self.is_new_issue:
+        if self.access_level > 2:
             dropdown.addItem("")
         if len(items) > 0:
             dropdown.addItems(items)
@@ -183,7 +195,7 @@ class IssueWindow(QWidget):
 
     def save_issue(self):
         data_dict = dict(
-            person_responsible=self.person_responsible_dropdown.currentText(),
+            assignee=self.assignee_dropdown.currentText(),
             originator=statics.logged_in_user,
             location=self.location_dropdown.currentText(),
             hazard_classification=self.hazard_classification_dropdown.currentText(),
@@ -246,3 +258,17 @@ class IssueWindow(QWidget):
         elif priority == "Low (C)":
             self.days = 14
         self.update_duration("from_priority")
+
+    def set_access_level(self):
+        """ 0 = default                         - only viewing
+            1 = assignee is editing             - only comments and such
+            2 = approver is editing             - close record or extend deadline
+            3 = originator is editing           - full access for now
+        """
+        if (self.assignee is not None and self.assignee != statics.username):
+            self.access_level = 1
+        if (self.approver is not None and self.approver != statics.username):
+            self.access_level = 2
+        if (self.originator is not None and self.originator != statics.username):
+            self.access_level = 3
+

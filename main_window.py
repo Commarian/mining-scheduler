@@ -116,22 +116,7 @@ class MainWindow(QMainWindow):
         issues = statics.issues_hash
         id_list = statics.id_list
         today = datetime.date.today()
-        field_mapping = {
-            'Due Date': 'due_date',  # or fallback to 'end_date'
-            'Originator': 'originator',
-            'Start Date': 'start_date',
-            'Hazard': 'hazard',
-            'Source': 'source',
-            'Hazard Classification': 'hazard_classification',
-            'Rectification': 'rectification',
-            'Location': 'location',
-            'Priority': 'priority',
-            'Person Responsible': 'person_responsible',
-            'Progress': 'progress',
-            'Date Completed': 'date_completed',
-            'Overdue': 'Overdue',
-            'Status': 'Status'
-        }
+
 
         for doc_id in id_list:
             doc_data = issues.get(doc_id, {})
@@ -167,7 +152,7 @@ class MainWindow(QMainWindow):
 
             row = []
             for header in statics.table_headers:
-                key = field_mapping.get(header)
+                key = statics.field_mapping.get(header)
                 row.append(doc_data.get(key, ""))
             data.append(row)
         return data

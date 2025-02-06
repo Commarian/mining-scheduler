@@ -29,7 +29,7 @@ msal_app = msal.ConfidentialClientApplication(config)
 
 # Table headers for your issues table
 table_headers = [
-    'Due Date',           # renamed from "End Date"
+    'Due Date',      
     'Originator',
     'Start Date',
     'Hazard',
@@ -38,12 +38,29 @@ table_headers = [
     'Rectification',
     'Location',
     'Priority', 
-    'Person Responsible',
-    'Progress',           # new column – numeric 0–100 (shown as a progress bar)
-    'Date Completed',     # new column – when the issue was closed
+    'Assignee',
+    'Progress', 
+    'Date Completed', 
     'Overdue',
     'Status'
 ]
+
+field_mapping = {
+    'Due Date': 'due_date',
+    'Originator': 'originator',
+    'Start Date': 'start_date',
+    'Hazard': 'hazard',
+    'Source': 'source',
+    'Hazard Classification': 'hazard_classification',
+    'Rectification': 'rectification',
+    'Location': 'location',
+    'Priority': 'priority',
+    'Assignee': 'assignee',
+    'Progress': 'progress',
+    'Date Completed': 'date_completed',
+    'Overdue': 'Overdue',
+    'Status': 'Status'
+}
 
 app_stylesheet = """
             QWidget {
