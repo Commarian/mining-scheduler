@@ -1,11 +1,11 @@
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, 
-    QToolBar, QAction, QStatusBar, QProgressDialog
+    QMainWindow, QApplication, QTableView, QWidget, QVBoxLayout,
+    QToolBar, QAction, QStatusBar
 )
 # main_window.py
 import datetime
 from PyQt5.QtGui import QIcon, QKeySequence
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer, QDateTime, pyqtSlot
 
 import statics
 
@@ -30,7 +30,14 @@ class MainWindow(QMainWindow):
         self.create_status_bar()
         self.create_central_widget()
 
-
+        #TODO add another timer that runs a boolean check on the same method passing it as a parameter to
+        #TODO to check if data is old using firestore, or alternatively just fetch every 5min from firestore and check
+        # Check periodically for updates to the table
+        self._old_issues_hash = dict(statics.issues_hash)
+        self.poll_timer = QTimer(self)
+        self.poll_timer.setInterval(200)  # e.g. every 500 ms
+        self.poll_timer.timeout.connect(self.check_for_updates)
+        self.poll_timer.start()
 
     # ---------------------------
     #   Window Close Handling
@@ -57,25 +64,25 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
     def create_toolbar(self):
-        toolbar = QToolBar("Main Toolbar")
-        toolbar.setMovable(False)
-        self.addToolBar(Qt.TopToolBarArea, toolbar)
+        self.toolbar = QToolBar("Main Toolbar")
+        self.toolbar.setMovable(False)
+        self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
         add_icon = QIcon()
         add_entry_btn = QAction(add_icon, "Add Entry", self)
         add_entry_btn.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
-        toolbar.addAction(add_entry_btn)
+        self.toolbar.addAction(add_entry_btn)
 
         update_icon = QIcon()
         self.update_entry = QAction(update_icon, "Update Record", self)
         self.update_entry.setDisabled(True)
         self.update_entry.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
-        toolbar.addAction(self.update_entry)
+        self.toolbar.addAction(self.update_entry)
 
         exit_icon = QIcon()
         exit_btn = QAction(exit_icon, "Exit", self)
         exit_btn.triggered.connect(self.close)
-        toolbar.addAction(exit_btn)
+        self.toolbar.addAction(exit_btn)
 
     def create_status_bar(self):
         status_bar = QStatusBar()
@@ -85,11 +92,11 @@ class MainWindow(QMainWindow):
     def create_central_widget(self):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        self.centralLayout = QVBoxLayout(central_widget)
         # Create the table model using the data that is already in statics
         model = TableModel(self.convert_issues_to_data(), statics.table_headers)
         self.table = MyTableView(model)
-        layout.addWidget(self.table)
+        self.centralLayout.addWidget(self.table)
 
         # Assign the ProgressBarDelegate to your 'Progress' column
         if "Progress" in statics.table_headers:
@@ -102,14 +109,12 @@ class MainWindow(QMainWindow):
         # Connect the selectionChanged signal to a new slot
         self.table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
 
-        central_widget.setLayout(layout)
+        central_widget.setLayout(self.centralLayout)
 
-    # ------------------------------------------------
-    #   Data / Firebase Threading
-    # ------------------------------------------------
-    def fetchData(self):
-        # Fetch fresh data from Firestore (no cache is used)
-        statics.firebase_manager.set_issues()
+        refresh_action = QAction(QIcon(), "Refresh", self)
+        refresh_action.triggered.connect(self.refresh_table)
+        self.toolbar.addAction(refresh_action)
+
 
     def convert_issues_to_data(self):
         data = []
@@ -216,8 +221,25 @@ class MainWindow(QMainWindow):
             self.fetch_thread.wait()
         super().closeEvent(event)
 
-    def on_table_selection_changed(self, selected, deselected):
+    def on_table_selection_changed(self):
         if self.table.selectionModel().hasSelection():
             self.update_entry.setEnabled(True)
         else:
             self.update_entry.setEnabled(False)
+        
+    @pyqtSlot()
+    def check_for_updates(self):
+        # No new fetch here if you truly do it elsewhere.
+        # Just compare old vs new content:
+        if statics.issues_hash != self._old_issues_hash:
+            print("Data changed, refreshing table...")
+
+            # Make a fresh copy
+            self._old_issues_hash = dict(statics.issues_hash)
+
+            # Now update the UI
+            self.refresh_table()
+
+    def refresh_table(self):
+        new_model = TableModel(self.convert_issues_to_data(), statics.table_headers)
+        self.table.setModel(new_model)

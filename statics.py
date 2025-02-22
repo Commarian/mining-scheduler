@@ -1,6 +1,7 @@
 # statics.py
 import msal
 
+
 row_selected = None
 issues_hash = {}
 id_list = []

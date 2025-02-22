@@ -55,7 +55,7 @@ class FirebaseManager:
 
     def save_data(self, collection_name, data, document=None):
         """
-        Save data to Firestore. Then fetch new data -> local cache -> memory.
+        Save data to Firestore. Then fetch new data
         """
         try:
             if document:
@@ -66,6 +66,7 @@ class FirebaseManager:
         except Exception as e:
             self.save_data(collection_name, data, document)
             print(f"[FirebaseManager] Error saving data to Firestore: {e}, retrying...")
+        self.set_issues()
 
 
     def get_data(self, collection_name: str, document_name: str) -> list:

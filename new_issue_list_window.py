@@ -14,14 +14,14 @@ class IssueWindow(QWidget):
         self.days = 0
         self.remaining_hours = 0
         if (is_new_issue):
-            self.access_level = 3
+            self.access_level = 4
         else:
             self.access_level = 0
         
         self.setup_ui()
 
     def setup_ui(self):
-        self.setWindowTitle("Add Record")
+        self.setWindowTitle("Update Record")
         self.setGeometry(50, 50, 1000, 800)
 
         # Populate dropdown items
@@ -29,6 +29,7 @@ class IssueWindow(QWidget):
         issue_sources_items = []
         locations_items = []
         priority_items = []
+        hazard_classification_items = []
         update_end_date = QDate.currentDate()
 
         # Originator or adding a new record
@@ -39,9 +40,6 @@ class IssueWindow(QWidget):
             hazard_classification_items = ["Class A - LTI", "Class B - MTC", "Class C - FAC"]
 
         elif len(statics.id_list) > 0 and statics.row_selected is not None:
-            self.set_access_level()
-            #TODO add more logical handling for these items and their population based on access_level
-            #Note that these get methods use STATICS field_mapping
             selected_row = statics.issues_hash.get(statics.id_list[statics.row_selected])
             self.assignee = selected_row.get("assignee")
             self.originator = selected_row.get("originator")
@@ -54,6 +52,9 @@ class IssueWindow(QWidget):
             update_end_date = QDate.fromString(end_date, 'yyyy-MM-dd')
             priority_items.append(selected_row.get("priority"))
             hazard_classification_items.append(selected_row.get("hazard_classification"))
+            #TODO add more logical handling for these items and their population based on access_level
+            #Note that these get methods use STATICS field_mapping
+            self.set_access_level()
         else:
             QMessageBox.critical(self, "Error", "Something went wrong with the current record selection. Please try again.")
             self.close()
@@ -111,7 +112,7 @@ class IssueWindow(QWidget):
         self.comment_label = QLabel("Comment:")
         self.comment_entry = QTextEdit()
 
-        save_button = custom_q_pushbutton.generate_button("Save")
+        save_button = custom_q_pushbutton.generate_button("Update")
 
         cancel_button = custom_q_pushbutton.generate_button("Cancel")
 
@@ -147,10 +148,12 @@ class IssueWindow(QWidget):
         if self.access_level > 2:
             form_layout.addRow(self.rectification_label, self.rectification_entry)
 
-        if not self.access_level > 2:
-            save_button.setText("Update")
-            form_layout.addRow(self.comment_label, self.comment_entry)
-            self.setWindowTitle("Update Record")
+        form_layout.addRow(self.comment_label, self.comment_entry)
+
+        if self.access_level == 4:
+            save_button.setText("Create")
+            form_layout.removeRow(self.comment_entry)
+            self.setWindowTitle("Add Record")
 
         v_layout.addLayout(form_layout)
         v_layout.addWidget(save_button)
@@ -158,15 +161,13 @@ class IssueWindow(QWidget):
         self.setLayout(v_layout)
 
         # Connect signals
-        if self.access_level > 2:
+        if self.access_level > 0:
             self.start_date_picker.clicked.connect(lambda: self.update_end_date("from_start"))
             self.end_date_picker.clicked.connect(lambda: self.update_duration("from_end"))
             self.duration_days_text.textEdited.connect(lambda: self.update_end_date("from_duration_days"))
             self.duration_hours_text.textEdited.connect(lambda: self.update_end_date("from_duration_hours"))
             self.priority_dropdown.currentIndexChanged.connect(self.handle_priority_change)
-            save_button.clicked.connect(lambda: self.save_issue)
-        else:
-            save_button.clicked.connect(lambda: self.update_issue)
+            save_button.clicked.connect(self.save_issue)
 
         cancel_button.clicked.connect(self.close)
 
@@ -194,9 +195,10 @@ class IssueWindow(QWidget):
         line_edit.setValidator(validator)
 
     def save_issue(self):
+        comment = self.comment_entry.toPlainText() if self.access_level != 4 else ""
         data_dict = dict(
             assignee=self.assignee_dropdown.currentText(),
-            originator=statics.logged_in_user,
+            originator=statics.username,
             location=self.location_dropdown.currentText(),
             hazard_classification=self.hazard_classification_dropdown.currentText(),
             source=self.source_dropdown.currentText(),
@@ -204,15 +206,11 @@ class IssueWindow(QWidget):
             start_date=self.start_date_picker.selectedDate().toString("yyyy-MM-dd"),
             end_date=self.end_date_picker.selectedDate().toString("yyyy-MM-dd"),
             hazard=self.hazard_entry.toPlainText(),
-            rectification=self.rectification_entry.toPlainText())
-
+            rectification=self.rectification_entry.toPlainText(),
+            comment=comment)
+  
         statics.firebase_manager.save_data("issues", data_dict)
-
-    def update_issue(self):
-        data_dict = dict(
-            comment=self.comment_entry.toPlainText()
-        )
-        statics.firebase_manager.save_data("issues", data_dict)
+        self.close()
 
     def update_end_date(self, location):
         start_date = self.start_date_picker.selectedDate()
@@ -264,11 +262,14 @@ class IssueWindow(QWidget):
             1 = assignee is editing             - only comments and such
             2 = approver is editing             - close record or extend deadline
             3 = originator is editing           - full access for now
+            4 = creating a new issue            - full access of course
         """
-        if (self.assignee is not None and self.assignee != statics.username):
+        if (self.assignee is not None and self.assignee == statics.username):
             self.access_level = 1
-        if (self.approver is not None and self.approver != statics.username):
+        if (self.approver is not None and self.approver == statics.username):
             self.access_level = 2
-        if (self.originator is not None and self.originator != statics.username):
+        if (self.originator is not None and self.originator == statics.username):
             self.access_level = 3
+
+        print("\nSetting access level to level {}\n".format(self.access_level))
 
