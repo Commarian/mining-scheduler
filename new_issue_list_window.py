@@ -9,7 +9,7 @@ import statics
 
 
 class IssueWindow(QWidget):
-    def __init__(self, is_new_issue):
+    def __init__(self, is_new_issue, pre_fetched_data=None):
         super().__init__()
         self.days = 0
         self.remaining_hours = 0
@@ -17,7 +17,8 @@ class IssueWindow(QWidget):
             self.access_level = 4
         else:
             self.access_level = 0
-        
+            
+        self.pre_fetched_data = pre_fetched_data or {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -147,12 +148,12 @@ class IssueWindow(QWidget):
             self.end_date_picker.setDisabled(True)
         if self.access_level > 2:
             form_layout.addRow(self.rectification_label, self.rectification_entry)
-
-        form_layout.addRow(self.comment_label, self.comment_entry)
+        
+        if (self.access_level > 0 and self.access_level != 4):
+            form_layout.addRow(self.comment_label, self.comment_entry)
 
         if self.access_level == 4:
             save_button.setText("Create")
-            form_layout.removeRow(self.comment_entry)
             self.setWindowTitle("Add Record")
 
         v_layout.addLayout(form_layout)
@@ -208,8 +209,14 @@ class IssueWindow(QWidget):
             hazard=self.hazard_entry.toPlainText(),
             rectification=self.rectification_entry.toPlainText(),
             comment=comment)
-  
-        statics.firebase_manager.save_data("issues", data_dict)
+    
+        # If this is an existing issue => we have a row_selected doc_id.
+        # If this is brand new => no doc_id.  
+        if self.access_level < 4:  # means we are editing an existing one 
+            doc_id = statics.id_list[statics.row_selected]
+            statics.firebase_manager.save_data("issues", data_dict, document=doc_id)
+        else:
+            statics.firebase_manager.save_data("issues", data_dict)
         self.close()
 
     def update_end_date(self, location):

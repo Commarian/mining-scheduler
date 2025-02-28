@@ -1,18 +1,19 @@
 from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QTableView, QWidget, QVBoxLayout,
-    QToolBar, QAction, QStatusBar
+    QToolBar, QAction, QStatusBar,QMessageBox
 )
-# main_window.py
 import datetime
 from PyQt5.QtGui import QIcon, QKeySequence
 from PyQt5.QtCore import Qt, QTimer, QDateTime, pyqtSlot
 
 import statics
 
-from helpers.my_table_view import MyTableView # your custom QTableView subclass
+from helpers.my_table_view import MyTableView
 from helpers.table_model import TableModel
 from new_issue_list_window import IssueWindow
 from helpers.progress_delegate import ProgressBarDelegate
+from helpers.add_record_thread import AddRecordThread
+from helpers.add_record_loading_dialog import AddRecordLoadingDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -70,7 +71,7 @@ class MainWindow(QMainWindow):
 
         add_icon = QIcon()
         add_entry_btn = QAction(add_icon, "Add Entry", self)
-        add_entry_btn.triggered.connect(lambda: self.show_issue_window(is_new_issue=True))
+        add_entry_btn.triggered.connect(self.handle_add_entry)
         self.toolbar.addAction(add_entry_btn)
 
         update_icon = QIcon()
@@ -122,7 +123,6 @@ class MainWindow(QMainWindow):
         id_list = statics.id_list
         today = datetime.date.today()
 
-
         for doc_id in id_list:
             doc_data = issues.get(doc_id, {})
             # Retrieve due date from either "due_date" or fallback to "end_date"
@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         row_data = self.table.model()._data[index.row()]
         headers = statics.table_headers
         status_index = headers.index("Status")
-        responsible_index = headers.index("Person Responsible")
+        responsible_index = headers.index("Assignee")
         status = row_data[status_index]
         responsible = row_data[responsible_index]
         if status == "Open" and responsible == statics.logged_in_user:
@@ -243,3 +243,34 @@ class MainWindow(QMainWindow):
     def refresh_table(self):
         new_model = TableModel(self.convert_issues_to_data(), statics.table_headers)
         self.table.setModel(new_model)
+
+    def handle_add_entry(self):
+        """
+        Called when user clicks 'Add Entry'. Show loading dialog immediately,
+        start AddRecordThread to fetch data, then open IssueWindow on success.
+        """
+        self.loading_dialog = AddRecordLoadingDialog(self)
+        self.loading_dialog.show()
+
+        self.add_record_thread = AddRecordThread()
+        self.add_record_thread.success.connect(self.on_add_record_success)
+        self.add_record_thread.fail.connect(self.on_add_record_fail)
+        self.add_record_thread.start()
+
+    def on_add_record_success(self, data_dict):
+        """
+        Runs on main thread when the background thread fetches data successfully.
+        data_dict => e.g. { 'locations': [...], 'issue_sources': [...], ... }
+        """
+        self.loading_dialog.close()
+
+        # Now create the IssueWindow, passing it the data it needs
+        self.new_issue_list_window = IssueWindow(
+            is_new_issue=True, 
+            pre_fetched_data=data_dict
+        )
+        self.new_issue_list_window.show()
+
+    def on_add_record_fail(self, error_message):
+        self.loading_dialog.close()
+        QMessageBox.critical(self, "Error", f"Unable to load record data: {error_message}")

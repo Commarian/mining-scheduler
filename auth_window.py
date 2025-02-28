@@ -3,7 +3,18 @@ import re
 import bcrypt
 import win32api
 import statics
+from PyQt5.QtWidgets import QWidget, QMessageBox
+from PyQt5.QtCore import Qt
+from loading_dialog import LoadingDialog
+from helpers.unified_loading_dialog import UnifiedLoadingDialog
+from helpers.everything_thread import EverythingThread
 from helpers.data_fetcher_thread import DataFetcherThread
+from main_window import MainWindow
+from PyQt5.QtWidgets import (
+    QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, 
+    QMessageBox, QCheckBox, QHBoxLayout, QGroupBox, QFormLayout, QSpacerItem, 
+    QSizePolicy
+)
 
 from PyQt5.QtWidgets import (
     QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, 
@@ -99,7 +110,7 @@ class AuthWindow(QWidget):
         # Button row
         button_layout = QHBoxLayout()
         self.submit_button = QPushButton('Sign In')
-        self.submit_button.clicked.connect(self.authenticate)
+        self.submit_button.clicked.connect(self.handle_sign_in)
         button_layout.addWidget(self.submit_button)
 
         # (Optional) “Clear Saved” if you want an easy way to clear local stored credentials
@@ -128,29 +139,28 @@ class AuthWindow(QWidget):
             QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
 
     def authenticate(self):
-        entered_password = self.password_input.text().strip()
-        entered_org = self.organization_input.text().strip()
-        # Retrieve organization data from Firebase:
-        org_data = statics.firebase_manager.get_organization_by_domain(entered_org)
-        if org_data is None:
-            QMessageBox.critical(self, "Error", "Please double-check your orginization's name.")
-            return
+        """
+        Called when user presses 'Sign In'. We:
+        1) Show loading dialog immediately.
+        2) Launch AuthThread to do the slow checks.
+        3) If auth fails, we close loading and show error.
+        4) If success, close auth window and proceed.
+        """
+        # (Optional) read user inputs again in case of any last-second changes
+        self.entered_password = self.password_input.text().strip()
+        self.entered_org = self.organization_input.text().strip()
 
-        # Verify the password against the stored hash.
-        stored_hash = org_data.get("passwordHash", "")
-        if statics.firebase_manager.verify_org_password(entered_password, stored_hash):
-            authorized_users = org_data.get("authorizedUsers", [])
-            if statics.collected_account.lower() not in [u.lower() for u in authorized_users]:
-                QMessageBox.critical(self, "Error", "Your user account is not authorized for this organization.")
-                return
+        # Show the loading dialog instantly
+        self.loading_dialog = LoadingDialog(self)
+        self.loading_dialog.show()
 
-            statics.logged_in_org = org_data
-            self.create_username()
-            self.save_credentials(entered_org, entered_password)
-            self.close()
-            self.start_loading_dialog()
-        else:
-            QMessageBox.warning(self, "Error", "Incorrect password.")
+        # Create the auth thread
+        self.auth_thread = AuthThread(self.entered_org, self.entered_password)
+        self.auth_thread.auth_success.connect(self.handle_auth_success)
+        self.auth_thread.auth_fail.connect(self.handle_auth_fail)
+
+        # Start the thread. Meanwhile, the loading dialog can animate.
+        self.auth_thread.start()
             
     def start_loading_dialog(self):
         loading_dialog = LoadingDialog(self)
@@ -173,3 +183,103 @@ class AuthWindow(QWidget):
         current_domains = statics.logged_in_org.get("domains", [])
         #TODO KAK CODE REMOVE
         statics.username = statics.collected_account.removesuffix("@ukwazi.com").lower()
+
+    def handle_auth_success(self, org_data):
+        """
+        Runs on the main (GUI) thread after auth_thread signals success.
+        """
+        # Close the loading dialog
+        self.loading_dialog.close()
+
+        # Org is valid, user is authorized
+        statics.logged_in_org = org_data
+        self.create_username()
+        self.save_credentials(self.entered_org, self.entered_password)
+
+        # Close the AuthWindow
+        self.close()
+
+        # Now do whatever you'd normally do next 
+        # e.g. show a new loading dialog for fetching data, or directly fetch data
+        self.start_loading_dialog()
+
+    def handle_auth_fail(self, error_message):
+        """
+        Runs on the main (GUI) thread if the AuthThread fails.
+        """
+        # Close the loading dialog
+        self.loading_dialog.close()
+
+        # Show an error message
+        QMessageBox.critical(self, "Auth Error", error_message)
+
+        # Stay in auth window (do not close) so user can try again
+
+    def start_loading_dialog(self):
+        """
+        Potentially do your data fetching next in a separate thread, or 
+        do what you had in your old code. This part is up to you.
+        """
+        loading_dialog = LoadingDialog(self)
+        loading_dialog.show()
+
+        self.fetcher_thread = DataFetcherThread()
+        self.fetcher_thread.finished_fetching.connect(loading_dialog.complete_loading)
+        self.fetcher_thread.start()
+
+    def handle_sign_in(self):
+        """
+        1) Show the unified loading dialog right away.
+        2) Start EverythingThread for auth + data fetch.
+        3) On fail => close loading, show error, remain in AuthWindow.
+        4) On success => close loading, close AuthWindow, open MainWindow.
+        """
+        self.entered_org = self.organization_input.text().strip()
+        self.entered_password = self.password_input.text().strip()
+
+        # Show the single loading dialog
+        self.loading_dialog = UnifiedLoadingDialog(self)
+        self.loading_dialog.show()
+
+        # Create the background thread
+        self.everything_thread = EverythingThread(
+            self.entered_org, 
+            self.entered_password
+        )
+
+        # Connect the signals:
+        self.everything_thread.step_progress.connect(self.loading_dialog.handle_progress_update)
+        self.everything_thread.step_message.connect(self.loading_dialog.handle_message_update)
+        self.everything_thread.finished_success.connect(self.on_everything_success)
+        self.everything_thread.finished_fail.connect(self.on_everything_fail)
+
+        # Start thread
+        self.everything_thread.start()
+
+    def on_everything_success(self):
+        """
+        Called when EverythingThread finishes successfully.
+        """
+        # 1) Close the loading dialog
+        self.loading_dialog.close()
+
+        # 2) Save credentials, create username, etc.
+        #    Because we already verified user, 
+        #    but you can finalize or store in QSettings:
+        self.save_credentials(self.entered_org, self.entered_password)
+        self.create_username()
+
+        # 3) Close the AuthWindow
+        self.close()
+
+        # 4) Show the main window
+        self.main_window = MainWindow()
+        self.main_window.show()
+
+    def on_everything_fail(self, error_message):
+        """
+        Called if auth or data fetch fails.
+        """
+        self.loading_dialog.close()
+        QMessageBox.critical(self, "Error", error_message)
+        # Remain in AuthWindow so user can re-try or fix credentials

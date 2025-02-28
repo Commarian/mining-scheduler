@@ -48,7 +48,7 @@ def combine_py_files(output_file="combined.py"):
     for py_file in py_files:
         # Compute a relative path from current dir (.)
         relative_path = os.path.relpath(py_file, ".")
-        doc_comment = f"#.\{relative_path}"
+        doc_comment = f"#{relative_path}"
 
         with open(py_file, "r", encoding="utf-8") as f:
             file_lines = f.readlines()

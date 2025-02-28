@@ -1,4 +1,3 @@
-# statics.py
 import msal
 
 
@@ -30,37 +29,43 @@ msal_app = msal.ConfidentialClientApplication(config)
 
 # Table headers for your issues table
 table_headers = [
-    'Due Date',      
-    'Originator',
+    'Logged Date', 
     'Start Date',
+    'Due Date',
+    'Date Completed', 
+    'Assignee',
+    'Originator',
+    'Approver',
     'Hazard',
     'Source',
     'Hazard Classification',
     'Rectification',
     'Location',
     'Priority', 
-    'Assignee',
     'Progress', 
-    'Date Completed', 
-    'Overdue',
-    'Status'
+    'Status',
+    'Department',
+    'Description'
 ]
 
 field_mapping = {
-    'Due Date': 'due_date',
-    'Originator': 'originator',
+    'Logged Date' : 'logged_date', 
     'Start Date': 'start_date',
-    'Hazard': 'hazard',
-    'Source': 'source',
-    'Hazard Classification': 'hazard_classification',
-    'Rectification': 'rectification',
-    'Location': 'location',
-    'Priority': 'priority',
-    'Assignee': 'assignee',
-    'Progress': 'progress',
-    'Date Completed': 'date_completed',
-    'Overdue': 'Overdue',
-    'Status': 'Status'
+    'Due Date': 'due_date',
+    'Date Completed' : 'date_completed', 
+    'Assignee': 'assignee', 
+    'Originator': 'originator', 
+    'Approver': 'approver', 
+    'Hazard': 'hazard', 
+    'Source': 'source', 
+    'Hazard Classification': 'hazard_classification', 
+    'Rectification': 'rectification', 
+    'Location': 'location', 
+    'Priority': 'priority', 
+    'Progress': 'progress', 
+    'Status': 'status', 
+    'Department': 'department',
+    'Description': 'description'
 }
 
 app_stylesheet = """
