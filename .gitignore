@@ -13,3 +13,4 @@ helpers/__pycache__/add_record_thread.cpython-312.pyc
 helpers/__pycache__/auth_thread.cpython-312.pyc
 helpers/__pycache__/everything_thread.cpython-312.pyc
 helpers/__pycache__/unified_loading_dialog.cpython-312.pyc
+combined.py
