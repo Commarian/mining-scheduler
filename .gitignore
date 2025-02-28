@@ -8,3 +8,8 @@ __pycache__/my_table_view.cpython-310.pyc
 __pycache__/new_issue_list_window.cpython-310.pyc
 __pycache__/statics.cpython-310.pyc
 __pycache__/table_model.cpython-310.pyc
+helpers/__pycache__/add_record_loading_dialog.cpython-312.pyc
+helpers/__pycache__/add_record_thread.cpython-312.pyc
+helpers/__pycache__/auth_thread.cpython-312.pyc
+helpers/__pycache__/everything_thread.cpython-312.pyc
+helpers/__pycache__/unified_loading_dialog.cpython-312.pyc

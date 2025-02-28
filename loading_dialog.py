@@ -1,4 +1,3 @@
-# loading_dialog.py
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QMessageBox
 from PyQt5.QtCore import Qt, QTimer
 from main_window import MainWindow

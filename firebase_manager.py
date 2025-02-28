@@ -1,5 +1,3 @@
-# firebase_manager.py
-
 import os
 import bcrypt
 import firebase_admin

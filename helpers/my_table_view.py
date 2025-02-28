@@ -2,8 +2,6 @@ from PyQt5 import QtWidgets, QtCore
 
 import statics
 
-
-
 class MyTableView(QtWidgets.QTableView):
     rowSelected = QtCore.pyqtSignal(list)
     def __init__(self, model):

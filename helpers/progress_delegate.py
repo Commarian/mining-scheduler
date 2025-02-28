@@ -1,5 +1,3 @@
-# progress_delegate.py
-
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyle, QStyleOptionProgressBar, QApplication
 from PyQt5.QtCore import Qt
 

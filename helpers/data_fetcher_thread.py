@@ -1,4 +1,3 @@
-# data_fetcher_thread.py
 from PyQt5.QtCore import QThread, pyqtSignal
 import statics
 
