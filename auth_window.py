@@ -15,12 +15,6 @@ from PyQt5.QtWidgets import (
     QMessageBox, QCheckBox, QHBoxLayout, QGroupBox, QFormLayout, QSpacerItem, 
     QSizePolicy
 )
-
-from PyQt5.QtWidgets import (
-    QLabel, QVBoxLayout, QWidget, QLineEdit, QPushButton, 
-    QMessageBox, QCheckBox, QHBoxLayout, QGroupBox, QFormLayout, QSpacerItem, 
-    QSizePolicy
-)
 from PyQt5.QtCore import Qt, QSettings
 
 from loading_dialog import LoadingDialog
@@ -48,12 +42,12 @@ def verify_password(entered_password, stored_hash):
 class AuthWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.settings = QSettings("Springbok", "SpringbokApp")  # For "Remember Me" data
+        self.settings = QSettings("Springbok", "SpringbokApp")
         self.init_ui()
 
     def init_ui(self):
         statics.collected_account = get_current_user().lower()
-        self.setStyleSheet(statics.app_stylesheet)
+        self.setStyleSheet(statics.app_stylesheet())
         self.password_window()
 
     def password_window(self):
@@ -137,30 +131,6 @@ class AuthWindow(QWidget):
 
         if (show_dialog):
             QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
-
-    def authenticate(self):
-        """
-        Called when user presses 'Sign In'. We:
-        1) Show loading dialog immediately.
-        2) Launch AuthThread to do the slow checks.
-        3) If auth fails, we close loading and show error.
-        4) If success, close auth window and proceed.
-        """
-        # (Optional) read user inputs again in case of any last-second changes
-        self.entered_password = self.password_input.text().strip()
-        self.entered_org = self.organization_input.text().strip()
-
-        # Show the loading dialog instantly
-        self.loading_dialog = LoadingDialog(self)
-        self.loading_dialog.show()
-
-        # Create the auth thread
-        self.auth_thread = AuthThread(self.entered_org, self.entered_password)
-        self.auth_thread.auth_success.connect(self.handle_auth_success)
-        self.auth_thread.auth_fail.connect(self.handle_auth_fail)
-
-        # Start the thread. Meanwhile, the loading dialog can animate.
-        self.auth_thread.start()
             
     def start_loading_dialog(self):
         loading_dialog = LoadingDialog(self)

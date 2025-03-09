@@ -5,20 +5,28 @@ from PyQt5.QtCore import QDate, QDateTime, QRegularExpression, Qt
 
 import helpers.custom_q_pushbutton as custom_q_pushbutton
 import helpers.meth as meth
+from helpers.date_range_picker import DateRangePicker
 import statics
 
 
 class IssueWindow(QWidget):
-    def __init__(self, is_new_issue, pre_fetched_data=None):
+    def __init__(self, is_new_issue):
         super().__init__()
+        self.setStyleSheet(statics.app_stylesheet())
         self.days = 0
         self.remaining_hours = 0
         if (is_new_issue):
             self.access_level = 4
         else:
             self.access_level = 0
-            
-        self.pre_fetched_data = pre_fetched_data or {}
+        self.doc_id = None
+        self.existing_data = {}
+        if not is_new_issue and statics.row_selected is not None:
+            self.doc_id = statics.id_list[statics.row_selected]
+            self.existing_data = statics.issues_hash.get(self.doc_id, {})
+
+        # Keep a dictionary that maps header -> widget
+        self.widget_map = {}
         self.setup_ui()
 
     def setup_ui(self):
@@ -31,7 +39,6 @@ class IssueWindow(QWidget):
         locations_items = []
         priority_items = []
         hazard_classification_items = []
-        update_end_date = QDate.currentDate()
 
         # Originator or adding a new record
         if self.access_level > 2:
@@ -49,8 +56,6 @@ class IssueWindow(QWidget):
             assignee_items.append(self.assignee)
             issue_sources_items.append(selected_row.get("source"))
             locations_items.append(selected_row.get("location"))
-            end_date = selected_row.get("end_date")
-            update_end_date = QDate.fromString(end_date, 'yyyy-MM-dd')
             priority_items.append(selected_row.get("priority"))
             hazard_classification_items.append(selected_row.get("hazard_classification"))
             #TODO add more logical handling for these items and their population based on access_level
@@ -59,18 +64,21 @@ class IssueWindow(QWidget):
         else:
             QMessageBox.critical(self, "Error", "Something went wrong with the current record selection. Please try again.")
             self.close()
-        
+
+
+
         # LOGIC : Approver might be able to change the assignee
         if (self.access_level > 1):
             assignee_items = statics.firebase_manager.get_data("company_data", "people")
+            if self.access_level == 4:
+                self.approver_label = QLabel("Approver:")
+                self.approver_dropdown = QComboBox()
+                self.populate_dropdown(self.approver_dropdown, assignee_items)
 
         # Widgets
         self.assignee_label = QLabel("Assignee:")
         self.assignee_dropdown = QComboBox()
         self.populate_dropdown(self.assignee_dropdown, assignee_items)
-
-        self.hazard_label = QLabel("Hazard:")
-        self.hazard_entry = QTextEdit()
 
         self.hazard_classification_label = QLabel("Hazard Classification:")
         self.hazard_classification_dropdown = QComboBox()
@@ -84,24 +92,19 @@ class IssueWindow(QWidget):
         self.source_dropdown = QComboBox()
         self.populate_dropdown(self.source_dropdown, issue_sources_items)
 
-        self.start_date_label = QLabel("Start Date:")
-        self.start_date_picker = QCalendarWidget()
-        self.start_date_picker.setMinimumDate(QDate.currentDate())
+        self.date_range_label = QLabel("Select Date Range:")
+        self.date_range_picker = DateRangePicker(self)
+        self.date_range_picker.setMinimumDate(QDate.currentDate())
+        self.date_range_picker.dateRangeSelected.connect(self.handle_date_range)
+        
 
         self.duration_days_label = QLabel("Duration days:")
         self.duration_days_text = QLineEdit()
         self.setup_validator(self.duration_days_text, r"^(?:[1-9][0-9]?|[1-2][0-9]{2}|3[0-5][0-9]|36[0-5])$")
 
-        self.duration_hours_label = QLabel(" hours:")
+        self.duration_hours_label = QLabel("Hours allocated:")
         self.duration_hours_text = QLineEdit()
         self.setup_validator(self.duration_hours_text, r"^(?:[0-1]?[0-9]|2[0-3])$")
-
-        self.end_date_label = QLabel("Due Date:")
-        self.end_date_picker = QCalendarWidget()
-        self.end_date_picker.setMinimumDate(QDate.currentDate())
-        if not self.access_level > 2:
-            self.end_date_picker.setMinimumDate(update_end_date)
-            self.end_date_picker.setSelectedDate(update_end_date)
             
         self.location_label = QLabel("Location:")
         self.location_dropdown = QComboBox()
@@ -129,23 +132,18 @@ class IssueWindow(QWidget):
         duration_row_layout.addWidget(self.duration_hours_text)
 
         form_layout.addRow(self.assignee_label, self.assignee_dropdown)
+        
         form_layout.addRow(self.location_label, self.location_dropdown)
 
         if self.access_level > 2:
-            form_layout.addRow(self.hazard_label, self.hazard_entry)
             form_layout.addRow(self.hazard_classification_label, self.hazard_classification_dropdown)
 
         form_layout.addRow(self.priority_label, self.priority_dropdown)
 
         if self.access_level > 2:
             form_layout.addRow(self.source_label, self.source_dropdown)
-            form_layout.addRow(self.start_date_label, self.start_date_picker)
             form_layout.addRow(self.duration_days_label, duration_row_layout)
 
-        form_layout.addRow(self.end_date_label, self.end_date_picker)
-
-        if (self.access_level < 2):
-            self.end_date_picker.setDisabled(True)
         if self.access_level > 2:
             form_layout.addRow(self.rectification_label, self.rectification_entry)
         
@@ -155,7 +153,9 @@ class IssueWindow(QWidget):
         if self.access_level == 4:
             save_button.setText("Create")
             self.setWindowTitle("Add Record")
+            form_layout.addRow(self.approver_label, self.approver_dropdown)
 
+        form_layout.addRow(self.date_range_label, self.date_range_picker)
         v_layout.addLayout(form_layout)
         v_layout.addWidget(save_button)
         v_layout.addWidget(cancel_button)
@@ -163,8 +163,6 @@ class IssueWindow(QWidget):
 
         # Connect signals
         if self.access_level > 0:
-            self.start_date_picker.clicked.connect(lambda: self.update_end_date("from_start"))
-            self.end_date_picker.clicked.connect(lambda: self.update_duration("from_end"))
             self.duration_days_text.textEdited.connect(lambda: self.update_end_date("from_duration_days"))
             self.duration_hours_text.textEdited.connect(lambda: self.update_end_date("from_duration_hours"))
             self.priority_dropdown.currentIndexChanged.connect(self.handle_priority_change)
@@ -196,7 +194,15 @@ class IssueWindow(QWidget):
         line_edit.setValidator(validator)
 
     def save_issue(self):
+        self.handle_date_range()
         comment = self.comment_entry.toPlainText() if self.access_level != 4 else ""
+        if hasattr(self, 'selected_start_date') and hasattr(self, 'selected_end_date'):
+            start_date_str = self.selected_start_date.toString("yyyy-MM-dd")
+            end_date_str = self.selected_end_date.toString("yyyy-MM-dd")
+        else:
+            start_date_str = ""
+            end_date_str = ""
+            
         data_dict = dict(
             assignee=self.assignee_dropdown.currentText(),
             originator=statics.username,
@@ -204,9 +210,8 @@ class IssueWindow(QWidget):
             hazard_classification=self.hazard_classification_dropdown.currentText(),
             source=self.source_dropdown.currentText(),
             priority=self.priority_dropdown.currentText(),
-            start_date=self.start_date_picker.selectedDate().toString("yyyy-MM-dd"),
-            end_date=self.end_date_picker.selectedDate().toString("yyyy-MM-dd"),
-            hazard=self.hazard_entry.toPlainText(),
+            start_date=start_date_str,
+            end_date=end_date_str,
             rectification=self.rectification_entry.toPlainText(),
             comment=comment)
     
@@ -216,6 +221,8 @@ class IssueWindow(QWidget):
             doc_id = statics.id_list[statics.row_selected]
             statics.firebase_manager.save_data("issues", data_dict, document=doc_id)
         else:
+            data_dict["approver"] = self.approver_dropdown.currentText()
+            data_dict["logged_date"] = QDate.currentDate().toString("yyyy-MM-dd")
             statics.firebase_manager.save_data("issues", data_dict)
         self.close()
 
@@ -280,3 +287,20 @@ class IssueWindow(QWidget):
 
         print("\nSetting access level to level {}\n".format(self.access_level))
 
+
+
+    def handle_date_range(self, start_date=None, end_date=None):
+        self.selected_start_date = start_date
+        self.selected_end_date = end_date
+
+        if not start_date:
+            self.selected_start_date = QDate.currentDate()
+        if not end_date:
+            self.selected_end_date = QDate.currentDate()
+            
+        if self.selected_start_date and not self.selected_end_date:
+            self.selected_end_date = self.selected_start_date
+        if not self.selected_start_date:
+            self.selected_start_date = QDate.currentDate()
+        if not self.selected_end_date:
+            self.selected_end_date = QDate.currentDate()

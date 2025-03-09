@@ -9,7 +9,7 @@ import statics
 class LoadingDialog(QDialog):
     def __init__(self, parent=None):
         super(LoadingDialog, self).__init__(parent)
-        self.setStyleSheet(statics.app_stylesheet)
+        self.setStyleSheet(statics.app_stylesheet())
         self.setWindowTitle("Loading Data")
         # Remove window frame for a splash-screen look
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)

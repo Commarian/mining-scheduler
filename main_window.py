@@ -4,8 +4,7 @@ from PyQt5.QtWidgets import (
 )
 import datetime
 from PyQt5.QtGui import QIcon, QKeySequence
-from PyQt5.QtCore import Qt, QTimer, QDateTime, pyqtSlot
-
+from PyQt5.QtCore import Qt, QTimer, QDateTime, pyqtSlot, QSettings
 import statics
 
 from helpers.my_table_view import MyTableView
@@ -18,19 +17,20 @@ from helpers.add_record_loading_dialog import AddRecordLoadingDialog
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.settings = QSettings("Springbok", "SpringbokApp")
         self.setWindowTitle("Issue Manager")
-        self.setGeometry(100, 100, 1400, 800)
+        self.setGeometry(50, 40, 1820, 1000)
         # ===========================
         #  Global Application Style
         # ===========================
-        self.setStyleSheet(statics.app_stylesheet)
+        self.setStyleSheet(statics.app_stylesheet())
 
         # Initialize the main parts
         self.create_menu_bar()
         self.create_toolbar()
         self.create_status_bar()
         self.create_central_widget()
-
+        
         #TODO add another timer that runs a boolean check on the same method passing it as a parameter to
         #TODO to check if data is old using firestore, or alternatively just fetch every 5min from firestore and check
         # Check periodically for updates to the table
@@ -62,6 +62,14 @@ class MainWindow(QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.setShortcut(QKeySequence.Quit)
         exit_action.triggered.connect(self.close)
+
+        self.dark_mode_checked = self.settings.value("dark_mode", False, type=bool)
+        self.dark_mode_action = QAction("Dark mode", self)
+        self.dark_mode_action.setCheckable(True)
+        self.dark_mode_action.setChecked(self.dark_mode_checked)
+        self.dark_mode_action.triggered.connect(self.toggle_dark_mode)
+
+        file_menu.addAction(self.dark_mode_action)
         file_menu.addAction(exit_action)
 
     def create_toolbar(self):
@@ -79,11 +87,6 @@ class MainWindow(QMainWindow):
         self.update_entry.setDisabled(True)
         self.update_entry.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
         self.toolbar.addAction(self.update_entry)
-
-        exit_icon = QIcon()
-        exit_btn = QAction(exit_icon, "Exit", self)
-        exit_btn.triggered.connect(self.close)
-        self.toolbar.addAction(exit_btn)
 
     def create_status_bar(self):
         status_bar = QStatusBar()
@@ -109,7 +112,6 @@ class MainWindow(QMainWindow):
         
         # Connect the selectionChanged signal to a new slot
         self.table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
-
         central_widget.setLayout(self.centralLayout)
 
         refresh_action = QAction(QIcon(), "Refresh", self)
@@ -222,6 +224,7 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def on_table_selection_changed(self):
+        self.table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
         if self.table.selectionModel().hasSelection():
             self.update_entry.setEnabled(True)
         else:
@@ -243,6 +246,7 @@ class MainWindow(QMainWindow):
     def refresh_table(self):
         new_model = TableModel(self.convert_issues_to_data(), statics.table_headers)
         self.table.setModel(new_model)
+        self.on_table_selection_changed()
 
     def handle_add_entry(self):
         """
@@ -265,12 +269,15 @@ class MainWindow(QMainWindow):
         self.loading_dialog.close()
 
         # Now create the IssueWindow, passing it the data it needs
-        self.new_issue_list_window = IssueWindow(
-            is_new_issue=True, 
-            pre_fetched_data=data_dict
-        )
+        self.new_issue_list_window = IssueWindow(is_new_issue=True)
         self.new_issue_list_window.show()
 
     def on_add_record_fail(self, error_message):
         self.loading_dialog.close()
         QMessageBox.critical(self, "Error", f"Unable to load record data: {error_message}")
+
+    def toggle_dark_mode(self):
+        self.settings.setValue("dark_mode", not self.dark_mode_checked)
+        self.dark_mode_checked = not (self.dark_mode_checked)
+        self.setStyleSheet(statics.app_stylesheet())
+        self.dark_mode_action.setChecked(self.dark_mode_checked)

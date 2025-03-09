@@ -11,7 +11,7 @@ class UnifiedLoadingDialog(QDialog):
     """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(statics.app_stylesheet)
+        self.setStyleSheet(statics.app_stylesheet())
 
         # No close buttons, etc.
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
