@@ -5,7 +5,6 @@ import win32api
 import statics
 from PyQt5.QtWidgets import QWidget, QMessageBox
 from PyQt5.QtCore import Qt
-from loading_dialog import LoadingDialog
 from helpers.unified_loading_dialog import UnifiedLoadingDialog
 from helpers.everything_thread import EverythingThread
 from helpers.data_fetcher_thread import DataFetcherThread
@@ -17,7 +16,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSettings
 
-from loading_dialog import LoadingDialog
 
 def get_current_user():
     try:
@@ -132,12 +130,6 @@ class AuthWindow(QWidget):
         if (show_dialog):
             QMessageBox.information(self, "Credentials Cleared", "Saved credentials have been cleared.")
             
-    def start_loading_dialog(self):
-        loading_dialog = LoadingDialog(self)
-        loading_dialog.show()
-        self.fetcher_thread = DataFetcherThread()
-        self.fetcher_thread.finished_fetching.connect(loading_dialog.complete_loading)
-        self.fetcher_thread.start()
 
     def save_credentials(self, entered_org, entered_password):
         if self.remember_checkbox.isChecked():
@@ -154,25 +146,6 @@ class AuthWindow(QWidget):
         #TODO KAK CODE REMOVE
         statics.username = statics.collected_account.removesuffix("@ukwazi.com").lower()
 
-    def handle_auth_success(self, org_data):
-        """
-        Runs on the main (GUI) thread after auth_thread signals success.
-        """
-        # Close the loading dialog
-        self.loading_dialog.close()
-
-        # Org is valid, user is authorized
-        statics.logged_in_org = org_data
-        self.create_username()
-        self.save_credentials(self.entered_org, self.entered_password)
-
-        # Close the AuthWindow
-        self.close()
-
-        # Now do whatever you'd normally do next 
-        # e.g. show a new loading dialog for fetching data, or directly fetch data
-        self.start_loading_dialog()
-
     def handle_auth_fail(self, error_message):
         """
         Runs on the main (GUI) thread if the AuthThread fails.
@@ -184,18 +157,6 @@ class AuthWindow(QWidget):
         QMessageBox.critical(self, "Auth Error", error_message)
 
         # Stay in auth window (do not close) so user can try again
-
-    def start_loading_dialog(self):
-        """
-        Potentially do your data fetching next in a separate thread, or 
-        do what you had in your old code. This part is up to you.
-        """
-        loading_dialog = LoadingDialog(self)
-        loading_dialog.show()
-
-        self.fetcher_thread = DataFetcherThread()
-        self.fetcher_thread.finished_fetching.connect(loading_dialog.complete_loading)
-        self.fetcher_thread.start()
 
     def handle_sign_in(self):
         """

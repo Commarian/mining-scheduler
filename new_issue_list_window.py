@@ -2,49 +2,48 @@ from PyQt5.QtGui import QRegularExpressionValidator
 from PyQt5.QtWidgets import QWidget, QMessageBox, QVBoxLayout, QLabel, QLineEdit, QComboBox, QTextEdit, \
     QCalendarWidget, QHBoxLayout, QFormLayout
 from PyQt5.QtCore import QDate, QDateTime, QRegularExpression, Qt
-
 import helpers.custom_q_pushbutton as custom_q_pushbutton
 import helpers.meth as meth
 from helpers.date_range_picker import DateRangePicker
 import statics
 
-
 class IssueWindow(QWidget):
-    def __init__(self, is_new_issue):
+    def __init__(self, passedInPriority: str, issue_sources_items, locations_items, assignee_items):
         super().__init__()
         self.setStyleSheet(statics.app_stylesheet())
         self.days = 0
         self.remaining_hours = 0
-        if (is_new_issue):
-            self.access_level = 4
-        else:
+        self.assignee_items = assignee_items
+        self.issue_sources_items = issue_sources_items
+        self.locations_items = locations_items
+        
+        if (passedInPriority == "edit"):
             self.access_level = 0
+        else:
+            self.access_level = 4
         self.doc_id = None
         self.existing_data = {}
-        if not is_new_issue and statics.row_selected is not None:
+        if self.access_level == 0 and statics.row_selected is not None:
             self.doc_id = statics.id_list[statics.row_selected]
             self.existing_data = statics.issues_hash.get(self.doc_id, {})
+            
 
-        # Keep a dictionary that maps header -> widget
-        self.widget_map = {}
         self.setup_ui()
 
     def setup_ui(self):
-        self.setWindowTitle("Update Record")
+        self.setWindowTitle("Update Item")
         self.setGeometry(50, 50, 1000, 800)
 
         # Populate dropdown items
-        assignee_items = []
-        issue_sources_items = []
-        locations_items = []
+
         priority_items = []
         hazard_classification_items = []
 
         # Originator or adding a new record
         if self.access_level > 2:
             priority_items = ["Critical", "Urgent", "High (A)", "Medium (B)", "Low (C)"]
-            locations_items = statics.firebase_manager.get_data("company_data", "locations")
-            issue_sources_items = statics.firebase_manager.get_data("company_data", "issue_sources")
+            #self.locations_items = statics.firebase_manager.get_data("company_data", "locations")
+            #self.issue_sources_items = statics.firebase_manager.get_data("company_data", "issue_sources")
             hazard_classification_items = ["Class A - LTI", "Class B - MTC", "Class C - FAC"]
 
         elif len(statics.id_list) > 0 and statics.row_selected is not None:
@@ -53,9 +52,9 @@ class IssueWindow(QWidget):
             self.originator = selected_row.get("originator")
             self.approver = selected_row.get("approver")
                 
-            assignee_items.append(self.assignee)
-            issue_sources_items.append(selected_row.get("source"))
-            locations_items.append(selected_row.get("location"))
+            self.assignee_items.append(self.assignee)
+            self.issue_sources_items.append(selected_row.get("source"))
+            self.locations_items.append(selected_row.get("location"))
             priority_items.append(selected_row.get("priority"))
             hazard_classification_items.append(selected_row.get("hazard_classification"))
             #TODO add more logical handling for these items and their population based on access_level
@@ -65,20 +64,18 @@ class IssueWindow(QWidget):
             QMessageBox.critical(self, "Error", "Something went wrong with the current record selection. Please try again.")
             self.close()
 
-
-
         # LOGIC : Approver might be able to change the assignee
         if (self.access_level > 1):
-            assignee_items = statics.firebase_manager.get_data("company_data", "people")
+            #self.assignee_items = statics.firebase_manager.get_data("company_data", "people")
             if self.access_level == 4:
                 self.approver_label = QLabel("Approver:")
                 self.approver_dropdown = QComboBox()
-                self.populate_dropdown(self.approver_dropdown, assignee_items)
-
+                self.populate_dropdown(self.approver_dropdown, self.assignee_items)
+        
         # Widgets
         self.assignee_label = QLabel("Assignee:")
         self.assignee_dropdown = QComboBox()
-        self.populate_dropdown(self.assignee_dropdown, assignee_items)
+        self.populate_dropdown(self.assignee_dropdown, self.assignee_items)
 
         self.hazard_classification_label = QLabel("Hazard Classification:")
         self.hazard_classification_dropdown = QComboBox()
@@ -90,7 +87,7 @@ class IssueWindow(QWidget):
 
         self.source_label = QLabel("Source:")
         self.source_dropdown = QComboBox()
-        self.populate_dropdown(self.source_dropdown, issue_sources_items)
+        self.populate_dropdown(self.source_dropdown, self.issue_sources_items)
 
         self.date_range_label = QLabel("Select Date Range:")
         self.date_range_picker = DateRangePicker(self)
@@ -108,7 +105,7 @@ class IssueWindow(QWidget):
             
         self.location_label = QLabel("Location:")
         self.location_dropdown = QComboBox()
-        self.populate_dropdown(self.location_dropdown, locations_items)
+        self.populate_dropdown(self.location_dropdown, self.locations_items)
 
         self.rectification_label = QLabel("Rectification:")
         self.rectification_entry = QTextEdit()
@@ -124,7 +121,6 @@ class IssueWindow(QWidget):
         v_layout = QVBoxLayout()
 
         form_layout = QFormLayout()
-
         # Combine duration days and duration hours in a single row
         duration_row_layout = QHBoxLayout()
         duration_row_layout.addWidget(self.duration_days_text)
@@ -152,7 +148,7 @@ class IssueWindow(QWidget):
 
         if self.access_level == 4:
             save_button.setText("Create")
-            self.setWindowTitle("Add Record")
+            self.setWindowTitle("Add Item")
             form_layout.addRow(self.approver_label, self.approver_dropdown)
 
         form_layout.addRow(self.date_range_label, self.date_range_picker)

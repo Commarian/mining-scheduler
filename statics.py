@@ -11,6 +11,7 @@ init_loading_done = False
 #Accounts
 collected_account = ''
 username = ''
+firebase_manager = None
 
 # Configuration from your secure storage
 CLIENT_ID = 'ef8bb5e6-6b0a-45ef-a722-c4e391290f83'

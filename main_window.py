@@ -1,12 +1,11 @@
 from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QTableView, QWidget, QVBoxLayout,
-    QToolBar, QAction, QStatusBar,QMessageBox
+    QToolBar, QAction, QStatusBar,QMessageBox, QMenu, QToolButton, QToolTip
 )
 import datetime
-from PyQt5.QtGui import QIcon, QKeySequence
+from PyQt5.QtGui import QIcon, QKeySequence, QCursor
 from PyQt5.QtCore import Qt, QTimer, QDateTime, pyqtSlot, QSettings
 import statics
-
 from helpers.my_table_view import MyTableView
 from helpers.table_model import TableModel
 from new_issue_list_window import IssueWindow
@@ -77,16 +76,53 @@ class MainWindow(QMainWindow):
         self.toolbar.setMovable(False)
         self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
-        add_icon = QIcon()
-        add_entry_btn = QAction(add_icon, "Add Entry", self)
-        add_entry_btn.triggered.connect(self.handle_add_entry)
-        self.toolbar.addAction(add_entry_btn)
 
-        update_icon = QIcon()
-        self.update_entry = QAction(update_icon, "Update Record", self)
+        self.priority_button = QToolButton(self)
+        self.priority_button.setText("New Issue")  # or "Add Item", etc.
+        self.priority_button.setPopupMode(QToolButton.InstantPopup)  
+        # 'InstantPopup' => menu pops up on click.
+
+        # 2) Create a menu with multiple actions for different priorities.
+        priority_menu = QMenu(self)
+        
+        critical_action = QAction("Critical Item", self)
+        #critical_action.setToolTip("Critical item means X, Y, Z...")
+        critical_action.triggered.connect(lambda: self.show_issue_window("critical"))
+
+        urgent_action = QAction("Urgent Item - 6 hours", self)
+        #urgent_action.setToolTip("Urgent items should be addressed ASAP...")
+        urgent_action.triggered.connect(lambda: self.show_issue_window("urgent"))
+
+        high_action = QAction("High Priority Item - 24 hours", self)
+        #high_action.setToolTip("High priority requires prompt but not immediate action...")
+        high_action.triggered.connect(lambda: self.show_issue_window("high"))
+
+        medium_action = QAction("Medium Priority Item - 7 days", self)
+        #medium_action.setToolTip("Medium priority items can be scheduled within a reasonable time frame...")
+        medium_action.triggered.connect(lambda: self.show_issue_window("medium"))
+
+        low_action = QAction("Low Priority Item - 14 days", self)
+        #low_action.setToolTip("Low priority items have minimal impact if delayed...")
+        low_action.triggered.connect(lambda: self.show_issue_window("low"))
+
+        # 3) Add them all to the QMenu.
+        priority_menu.addAction(critical_action)
+        priority_menu.addAction(urgent_action)
+        priority_menu.addAction(high_action)
+        priority_menu.addAction(medium_action)
+        priority_menu.addAction(low_action)
+
+        # 4) Assign the menu to the QToolButton.
+        self.priority_button.setMenu(priority_menu)
+
+        # 5) Finally, add this toolbutton to the toolbar.
+        self.toolbar.addWidget(self.priority_button)
+
+        self.update_entry = QAction("Update Record", self)
         self.update_entry.setDisabled(True)
-        self.update_entry.triggered.connect(lambda: self.show_issue_window(is_new_issue=False))
+        self.update_entry.triggered.connect(lambda: self.show_issue_window("edit"))
         self.toolbar.addAction(self.update_entry)
+        priority_menu.hovered.connect(self.show_action_tooltip)
 
     def create_status_bar(self):
         status_bar = QStatusBar()
@@ -179,7 +215,7 @@ class MainWindow(QMainWindow):
             self.open_progress_dialog(index, is_reopening=True)
         else:
             statics.row_selected = index.row()
-            self.show_issue_window(is_new_issue=False)
+            self.show_issue_window("edit")
 
     def open_progress_dialog(self, index, is_reopening=False):
         # Retrieve the current progress value from the table row.
@@ -213,9 +249,26 @@ class MainWindow(QMainWindow):
             self.on_thread_finished()
         
 
-    def show_issue_window(self, is_new_issue):
-        self.new_issue_list_window = IssueWindow(is_new_issue)
-        self.new_issue_list_window.show()
+    def show_issue_window(self, priority: str):
+        """
+        1. Show spinner dialog immediately.
+        2. Spin up a background thread to load data for the new IssueWindow.
+        3. Once data is loaded, close the spinner and show the IssueWindow.
+        """
+        from helpers.spinner_dialog import SpinnerDialog
+        self.spinner = SpinnerDialog(self)  
+        self.spinner.show()
+        from helpers.issue_data_thread import IssueDataThread
+        # Create the data thread
+        self.issue_thread = IssueDataThread(priority, self)
+        self.issue_thread.data_loaded.connect(self.on_issue_data_loaded)
+        self.issue_thread.start()
+        
+    def on_issue_data_loaded(self, priority, issue_sources_items, locations_items, assignee_items): 
+        self.spinner.close()
+        self.new_issue_window = IssueWindow(priority, issue_sources_items, locations_items, assignee_items)
+        self.new_issue_window.show()
+
 
     def closeEvent(self, event):
         if hasattr(self, 'fetch_thread') and self.fetch_thread.isRunning():
@@ -248,36 +301,16 @@ class MainWindow(QMainWindow):
         self.table.setModel(new_model)
         self.on_table_selection_changed()
 
-    def handle_add_entry(self):
-        """
-        Called when user clicks 'Add Entry'. Show loading dialog immediately,
-        start AddRecordThread to fetch data, then open IssueWindow on success.
-        """
-        self.loading_dialog = AddRecordLoadingDialog(self)
-        self.loading_dialog.show()
-
-        self.add_record_thread = AddRecordThread()
-        self.add_record_thread.success.connect(self.on_add_record_success)
-        self.add_record_thread.fail.connect(self.on_add_record_fail)
-        self.add_record_thread.start()
-
-    def on_add_record_success(self, data_dict):
-        """
-        Runs on main thread when the background thread fetches data successfully.
-        data_dict => e.g. { 'locations': [...], 'issue_sources': [...], ... }
-        """
-        self.loading_dialog.close()
-
-        # Now create the IssueWindow, passing it the data it needs
-        self.new_issue_list_window = IssueWindow(is_new_issue=True)
-        self.new_issue_list_window.show()
-
-    def on_add_record_fail(self, error_message):
-        self.loading_dialog.close()
-        QMessageBox.critical(self, "Error", f"Unable to load record data: {error_message}")
-
     def toggle_dark_mode(self):
         self.settings.setValue("dark_mode", not self.dark_mode_checked)
         self.dark_mode_checked = not (self.dark_mode_checked)
         self.setStyleSheet(statics.app_stylesheet())
         self.dark_mode_action.setChecked(self.dark_mode_checked)
+        
+    def show_action_tooltip(self, action):
+        if action and action.toolTip():
+            # Show the action's toolTip at the mouse cursor position
+            QToolTip.showText(QCursor.pos(), action.toolTip())
+        else:
+            # Hide any existing tooltip if there's no tooltip text
+            QToolTip.hideText()
