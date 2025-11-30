@@ -25,13 +25,13 @@ The system was built to replace legacy spreadsheet-based planning processes and 
 ## Technology Stack
 
 - **Language:** Python
-- **Dependencies:** (Add libraries/frameworks here, e.g. Flask/FastAPI, SQLAlchemy, etc.)
-- **Database:** (Specify SQLite/PostgreSQL/MySQL or other)
-- **Frontend/UI:** (CLI / Tkinter / Web UI if applicable)
+- **Dependencies:** (Firebase, Tkinter)
+- **Database:** (Firebase)
+- **Frontend/UI:** (CLI / Tkinter)
 
 ## Project Status — Archived
 
-This repository has been archived. The project reached a functional implementation stage, but the organization it was developed for ultimately chose not to allocate ongoing funding or licensing. As a result, no further work, support, or updates are planned.
+This repository has been archived. The project reached a functional implementation stage, but the organization it was developed for ultimately chose not to allocate ongoing funding. As a result, no further work, support, or updates are planned.
 
 The code is provided for reference only.
 
